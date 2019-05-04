@@ -1,7 +1,9 @@
 import 'package:http/http.dart' as http;
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:intl/intl.dart';
 import 'dart:convert' as convert;
 import 'dart:async';
+
 
 // The KRLX api URL
 const String stream_url = 'http://live.krlx.org/data.php';
@@ -18,6 +20,8 @@ class Show{
   RegExp hostReg = new RegExp(r"^(\S+) ([^\s\d]+ )+('(\d\d)?|)|(\S+) (\S+)$");
   String directoryUrl = 'apps.carleton.edu';
   String ldapPrefix = 'https://apps.carleton.edu/stock/ldapimage.php?id=';
+  String startDisplay;
+  String endDisplay;
   DateTime startTime;
   DateTime endTime;
   String relTime;
@@ -62,7 +66,6 @@ class Show{
   Future get hostsDone => _hostsDone;
 
   DateTime _processStringTime(String timeString){
-    print("Parsing string time ${timeString}");
     DateTime now = DateTime.now();
     List<String> timeSplit = timeString.split(":");
     int hour = int.parse(timeSplit[0]);
@@ -76,8 +79,11 @@ class Show{
       day = now.day+1;
     }
     DateTime parsedTime = new DateTime(now.year, now.month, day, hour, minute);
-    print("Parsed time ${parsedTime.toString()}");
     return parsedTime;
+  }
+
+  String timeUntil(DateTime date) {
+    return timeago.format(date, locale: 'en', allowFromNow: true);
   }
 
   /// Process the start and end time of a show into both a DateTime and a
@@ -92,12 +98,14 @@ class Show{
       Duration(hours: 1)
     ).hour.toString());
     if (startTime.isBefore(now)){
-      this.relTime = "Ends ${timeago.format(endTime)}";
+      this.relTime = "Ends ${timeUntil(this.endTime)}";
     }
     else{
-      this.relTime = "Starts ${timeago.format(startTime)}";
+      this.relTime = "Starts ${timeUntil(this.startTime)}";
     }
-    print("Saved reltime ${this.relTime}");
+    DateFormat hourFormatter = new DateFormat.jm();
+    this.startDisplay = hourFormatter.format(this.startTime);
+    this.endDisplay = hourFormatter.format(this.endTime);
   }
 
   Show(var showData, bool isCurrent){

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+
 import 'dart:ui' show Color;
+import 'dart:io';
 import 'dart:async';
 
 import 'variables.dart' as variables;
@@ -85,8 +88,6 @@ class _HomeState extends State<Home> {
   Widget _showCard(krlx.Show show){
     String showTitle = show.showData["title"] ?? "No title found";
     String showDesc = show.showData["description"] ?? "No description found";
-    String showStart = show.showData["start"] ?? "No start time found";
-    String showEnd = show.showData["end"] ?? "No end time Found";
     List<Widget> cardChildren = new List<Widget>();
     List<Widget> hostCards = _djCards(show.hosts, show.isCurrent);
     cardChildren.add(
@@ -95,29 +96,26 @@ class _HomeState extends State<Home> {
           textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontWeight: FontWeight.bold),),
-        subtitle: Text(showDesc),
-        trailing: Text(show.relTime,
-                        style: TextStyle(fontWeight: FontWeight.bold))
+        subtitle: Text(showDesc)
       )
     );
     cardChildren.addAll(hostCards);
-    return MaterialApp(
-        title: 'KRLX',
-        home: Scaffold(
-          appBar: AppBar(
-            title: Text('KRLX'),
-          ),
-          body:
-
-              Card(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: cardChildren
+    cardChildren.add(ListTile(
+        title: Text(show.relTime,
+          style: TextStyle(fontWeight: FontWeight.bold)),
+        trailing: Text(
+            "${show.showData['day']}, ${show.startDisplay}-${show.endDisplay}"))
+    );
+    return Column(
+                children: [
+                  Card(
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: cardChildren
+                      )
                   )
-                )
-        ),
-        theme: variables.theme
-        );
+                ]
+      );
     }
 
   Widget _render(krlx.KRLXUpdate data){
@@ -144,20 +142,37 @@ class _HomeState extends State<Home> {
       stream: this.dataStream,
       builder: (BuildContext context, AsyncSnapshot snapshot)
     {
+      Widget body;
       if (snapshot.hasError)
-        return Text('Error: ${snapshot.error}');
+         body = Text('Error: ${snapshot.error}');
       switch (snapshot.connectionState) {
         case ConnectionState.none:
-          return Text('Select lot');
+          body = Text("Can't connect to KRLX");
+          break;
         case ConnectionState.waiting:
-         return Text("Waiting");
+          body = Center(child:
+              SpinKitRotatingCircle(
+                color: variables.theme.accentColor,
+                size: 50.0,
+              ));
+          break;
         case ConnectionState.active:
-          print("Got refreshed stream data");
-          return _render(snapshot.data);
+          body = _render(snapshot.data);
+          break;
         case ConnectionState.done:
-          return Text('\$${snapshot.data} (closed)');
+          body = Text("Connection to KRLX closed unexpectedly");
       }
-      return null; // unreachable
+      return MaterialApp(
+          title: 'KRLX',
+          home: Scaffold(
+              appBar: AppBar(
+                title: Image.asset("KRLXTitleBar.png"),
+              ),
+              body: body
+          ),
+          theme: variables.theme
+      );
+
     },
     );
   }
