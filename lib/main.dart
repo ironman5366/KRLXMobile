@@ -91,7 +91,10 @@ class _HomeState extends State<Home> {
     List<Widget> hostCards = _djCards(show.hosts, show.isCurrent);
     cardChildren.add(
       ListTile(
-        title: Text(showTitle),
+        title: Text(showTitle,
+          textAlign: TextAlign.center,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontWeight: FontWeight.bold),),
         subtitle: Text(showDesc),
       )
     );
@@ -102,17 +105,17 @@ class _HomeState extends State<Home> {
           appBar: AppBar(
             title: Text('KRLX'),
           ),
-          body: Center(
-            child: Card(
-                child: Column(
+          body:
+
+              Card(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: cardChildren
+                  )
                 )
-            )
-          ),
         ),
-      theme: variables.theme
-    );
+        theme: variables.theme
+        );
     }
 
   Widget _render(krlx.KRLXUpdate data){
@@ -145,9 +148,9 @@ class _HomeState extends State<Home> {
         case ConnectionState.none:
           return Text('Select lot');
         case ConnectionState.waiting:
-          print("Here");
          return Text("Waiting");
         case ConnectionState.active:
+          print("Got refreshed stream data");
           return _render(snapshot.data);
         case ConnectionState.done:
           return Text('\$${snapshot.data} (closed)');
