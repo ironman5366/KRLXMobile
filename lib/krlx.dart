@@ -1,4 +1,5 @@
 import 'package:http/http.dart' as http;
+import 'package:timeago/timeago.dart' as timeago;
 import 'dart:convert' as convert;
 import 'dart:async';
 
@@ -17,6 +18,9 @@ class Show{
   RegExp hostReg = new RegExp(r"^(\S+) ([^\s\d]+ )+('(\d\d)?|)|(\S+) (\S+)$");
   String directoryUrl = 'apps.carleton.edu';
   String ldapPrefix = 'https://apps.carleton.edu/stock/ldapimage.php?id=';
+  DateTime startTime;
+  DateTime endTime;
+  String relTime;
   Future _hostsDone;
   bool isCurrent;
   Map<String, String> hosts;
@@ -46,9 +50,9 @@ class Show{
       if (student){
         queryParams['search_for'] = 'student';
       }
-      var fetch_url = new Uri.https(directoryUrl, '/campus/directory',
+      var fetchURL = new Uri.https(directoryUrl, '/campus/directory',
                                     queryParams);
-      var html = await http.get(fetch_url);
+      var html = await http.get(fetchURL);
       var im = getDJImage(html.body);
       showHosts[dj] = im;
     }
@@ -57,9 +61,49 @@ class Show{
   }
   Future get hostsDone => _hostsDone;
 
+  DateTime _processStringTime(String timeString){
+    print("Parsing string time ${timeString}");
+    DateTime now = DateTime.now();
+    List<String> timeSplit = timeString.split(":");
+    int hour = int.parse(timeSplit[0]);
+    int minute = int.parse(timeSplit[1]);
+    // Account for shows that start or end in a different day
+    int day;
+    if (hour >= now.hour){
+      day = now.day;
+    }
+    else{
+      day = now.day+1;
+    }
+    DateTime parsedTime = new DateTime(now.year, now.month, day, hour, minute);
+    print("Parsed time ${parsedTime.toString()}");
+    return parsedTime;
+  }
+
+  /// Process the start and end time of a show into both a DateTime and a
+  /// timeago object
+  void _processTime(){
+    // If a start or end time can't be found, set the start time to now,
+    // and the end time to in an hour
+    DateTime now = DateTime.now();
+    this.startTime = _processStringTime(this.showData["start"] ??
+      now.hour.toString());
+    this.endTime = _processStringTime(this.showData["end"] ?? now.add(
+      Duration(hours: 1)
+    ).hour.toString());
+    if (startTime.isBefore(now)){
+      this.relTime = "Ends ${timeago.format(endTime)}";
+    }
+    else{
+      this.relTime = "Starts ${timeago.format(startTime)}";
+    }
+    print("Saved reltime ${this.relTime}");
+  }
+
   Show(var showData, bool isCurrent){
     this.showData = showData;
     this.isCurrent = isCurrent;
+    _processTime();
     _hostsDone = processHosts();
   }
 }

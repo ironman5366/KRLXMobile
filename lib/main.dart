@@ -96,6 +96,8 @@ class _HomeState extends State<Home> {
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontWeight: FontWeight.bold),),
         subtitle: Text(showDesc),
+        trailing: Text(show.relTime,
+                        style: TextStyle(fontWeight: FontWeight.bold))
       )
     );
     cardChildren.addAll(hostCards);
