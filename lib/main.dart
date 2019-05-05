@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'package:video_player/video_player.dart';
+
 
 import 'dart:ui' show Color;
 import 'dart:io';
@@ -19,11 +21,13 @@ class KRLX extends StatelessWidget {
       title: 'KRLX',
       theme: variables.theme,
       home: Home(title: 'KRLX'),
+
     );
   }
 }
 
 class Home extends StatefulWidget {
+  
   Home({Key key, this.title}) : super(key: key);
 
   // This widget is the home page of your application. It is stateful, meaning
@@ -42,7 +46,19 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  VideoPlayerController _controller;
   Stream<krlx.KRLXUpdate> dataStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.network(
+        'http://garnet.krlx.org:8000/krlx')
+      ..initialize().then((_) {
+        // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
+        setState(() {});
+      });
+  }
 
   _HomeState(){
     // Instantiate the stream
@@ -168,8 +184,21 @@ class _HomeState extends State<Home> {
               appBar: AppBar(
                 title: Image.asset("KRLXTitleBar.png"),
               ),
-              body: body
+              body: body,
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  setState(() {
+                    _controller.value.isPlaying
+                        ? _controller.pause()
+                        : _controller.play();
+                  });
+                },
+                child: Icon(
+                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                ),
+        ),
           ),
+          
           theme: variables.theme
       );
 
