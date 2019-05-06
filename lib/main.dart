@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:video_player/video_player.dart';
+import 'package:carousel_slider/carousel_slider.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'dart:ui' show Color;
 import 'dart:io';
@@ -89,7 +92,7 @@ class _HomeState extends State<Home> {
     return dj_cards;
   }
 
-  Widget _showCard(krlx.Show show) {
+  List<Widget> _showCard(krlx.Show show){
     String showTitle = show.showData["title"] ?? "No title found";
     String showDesc = show.showData["description"] ?? "No description found";
     List<Widget> cardChildren = new List<Widget>();
@@ -108,24 +111,135 @@ class _HomeState extends State<Home> {
             Text(show.relTime, style: TextStyle(fontWeight: FontWeight.bold)),
         trailing: Text(
             "${show.showData['day']}, ${show.startDisplay}-${show.endDisplay}")));
-    return Column(children: [
-      Card(
-          child: Column(mainAxisSize: MainAxisSize.min, children: cardChildren))
-    ]);
+    return cardChildren;
   }
 
-  Widget _render(krlx.KRLXUpdate data) {
-    List<Widget> showWidgets = new List<Widget>();
-    Widget nowShowWidget;
-    data.shows.forEach((String showId, krlx.Show show) {
-      Widget showWidget = _showCard(show);
-      if (show.isCurrent) {
+  Image getSongImage(song){
+    if (song.albumCover != null){
+      return Image.network(song.albumCover,
+          width: MediaQuery
+          .of(context)
+          .size
+          .width,
+    height: 75);
+    }
+    else{
+      return Image.asset("album.png",
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
+          height: 75,
+          );
+    }
+  }
+
+  _launchURL(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
+
+  Widget _songCard(krlx.Song song){
+    // Add YouTube first because the YouTube link will always be there,
+    // and users should be able to find it in a consistent location
+    List<Widget> buttonChildren = [ IconButton(icon: new Icon(FontAwesomeIcons.youtube),
+        color: Color(0xFFFF0000), onPressed: (){
+          _launchURL(song.youtubeLink);
+        })];
+    // Add the Spotify link next if it exists
+    if (song.spotifyLink != null) {
+      buttonChildren.add(
+          IconButton(icon: new Icon(FontAwesomeIcons.spotify),
+              color: Color(0xFF1ED760), onPressed: () {
+                _launchURL(song.spotifyLink);
+              })
+
+      );
+    }
+    Widget buttonRow = Row(children: buttonChildren);
+    List<Widget> cardChildren =  [
+      getSongImage(song),
+      Text(song.songTitle, style: TextStyle(
+          fontWeight: FontWeight.bold, fontSize: 25),
+          overflow: TextOverflow.ellipsis),
+      Text("Artist: ${song.artist}", overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 15)),
+      Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              fontWeight: FontWeight.bold, fontSize: 15)),
+      buttonRow
+    ];
+
+    // Add buttons
+    return Builder(
+      builder: (BuildContext context) {
+        return Container(
+            width: MediaQuery
+                .of(context)
+                .size
+                .width,
+            margin: EdgeInsets.symmetric(horizontal: 5.0),
+            decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                color: Colors.white
+            ),
+            child: Column(
+                children: cardChildren
+            )
+        );
+      }
+    );
+  }
+
+  List<Widget> _songCards(Map<String, krlx.Song> songs){
+    List<Widget> cards = new List<Widget>();
+    songs.forEach((String queryID, krlx.Song song) =>
+        cards.add(_songCard(song)));
+    return cards;
+  }
+
+  Widget _render(krlx.KRLXUpdate data){
+    List<List<Widget>> showWidgets = new List<List<Widget>>();
+    List<Widget> nowShowWidget;
+    data.shows.forEach((String showId, krlx.Show show){
+      List<Widget> showWidget = _showCard(show);
+      if (show.isCurrent){
         nowShowWidget = showWidget;
       } else {
         showWidgets.add(showWidget);
       }
     });
-    return Center(child: nowShowWidget);
+    return Center(
+      child: Column(
+          children: [
+            Card(
+                child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: nowShowWidget
+                ),
+            ),
+            Text("Songs", textAlign: TextAlign.center,
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25)
+            ),
+            CarouselSlider(
+              height: 200.0,
+              items: _songCards(data.songs),
+              enableInfiniteScroll: false,
+            )
+          ]
+      )
+    );
+  }
+
+  ///
+  /// Go to the end of the stream when the user clicks play
+  void playSeek(){
+    _controller.seekTo(_controller.value.duration);
+    _controller.play();
   }
 
   @override
@@ -159,13 +273,14 @@ class _HomeState extends State<Home> {
               appBar: AppBar(
                 title: Image.asset("KRLXTitleBar.png"),
               ),
+              backgroundColor: variables.theme.backgroundColor,
               body: body,
               floatingActionButton: FloatingActionButton(
                 onPressed: () {
                   setState(() {
                     _controller.value.isPlaying
                         ? _controller.pause()
-                        : _controller.play();
+                        : this.playSeek();
                   });
                 },
                 child: Icon(

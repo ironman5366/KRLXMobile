@@ -12,5 +12,6 @@ final MaterialColor primary = MaterialColor(
 final theme = new ThemeData(
   primaryColor: Color(0xFF4B88A2),
   accentColor: Color(0xFF9A3B42),
-  backgroundColor: Color(0xFFD3D4D9)
+  backgroundColor: Color(0xFFD3D4D9),
+  fontFamily: "Arimo"
 );
