@@ -51,9 +51,14 @@ class CacheManager{
     return convert.jsonDecode(rawCacheData);
   }
 
-  void writeSong(String queryId, Map cacheObj) async{
-      String query_json = convert.jsonEncode(cacheObj);
+  void writeCache(String cacheJSON){
+    _cacheFile.writeAsStringSync(cacheJSON);
+  }
 
+  void writeSong(String queryId, Map cacheObj) async{
+      Map songCache = await getCache();
+      songCache[queryId] = cacheObj;
+      writeCache(convert.jsonEncode(songCache));
   }
 
   /// Check if a song exists in the cache, and if it does,
@@ -78,7 +83,7 @@ class SongQuery{
 
   SongQuery(this.artist, this.track, this.album);
 
-  /// Build a query string in spotify search suntax that will be unique
+  /// Build a query string in Spotify search suntax that will be unique
   /// for this song, artist, and album. This will also be used as an
   /// identifier for the query record in the cache
   String queryString(){
