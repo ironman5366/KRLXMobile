@@ -120,16 +120,17 @@ class _HomeState extends State<Home> {
           width: MediaQuery
           .of(context)
           .size
-          .width,
-    height: 75);
+          .width-5,
+    fit: BoxFit.fill,
+    height: 150);
     }
     else{
       return Image.asset("album.png",
           width: MediaQuery
               .of(context)
               .size
-              .width,
-          height: 75,
+              .width-5,
+          height: 150,
           );
     }
   }
@@ -145,21 +146,41 @@ class _HomeState extends State<Home> {
   Widget _songCard(krlx.Song song){
     // Add YouTube first because the YouTube link will always be there,
     // and users should be able to find it in a consistent location
-    List<Widget> buttonChildren = [ IconButton(icon: new Icon(FontAwesomeIcons.youtube),
-        color: Color(0xFFFF0000), onPressed: (){
+    List<Widget> buttonChildren = [ OutlineButton.icon(icon:
+    new Icon(FontAwesomeIcons.youtube, color: Color(0xFFFF0000)),
+         onPressed: (){
           _launchURL(song.youtubeLink);
-        })];
+        },
+        label: Text("YouTube"), shape: StadiumBorder())];
     // Add the Spotify link next if it exists
     if (song.spotifyLink != null) {
       buttonChildren.add(
-          IconButton(icon: new Icon(FontAwesomeIcons.spotify),
-              color: Color(0xFF1ED760), onPressed: () {
+          OutlineButton.icon(icon: new Icon(FontAwesomeIcons.spotify,
+              color: Color(0xFF1ED760)), onPressed: () {
                 _launchURL(song.spotifyLink);
-              })
-
+              },
+              label: Text("Spotify"),
+              shape: StadiumBorder()
+          ),
       );
     }
-    Widget buttonRow = Row(children: buttonChildren);
+    List<Widget> bottomButtonChildren = new List<Widget>();
+    if (song.spotifyLink != null){
+      bottomButtonChildren.add(
+        OutlineButton.icon(icon: new Icon(FontAwesomeIcons.apple,
+            color: Colors.black),
+            onPressed: () {
+              _launchURL(song.spotifyLink);
+            },
+            label: Text("Apple Music"),
+            shape: StadiumBorder()
+        ),
+      );
+    }
+    Widget topButtonRow = ButtonBar(
+        children: buttonChildren, mainAxisSize: MainAxisSize.min);
+    Widget bottomButtonRow = ButtonBar(
+        children: bottomButtonChildren, mainAxisSize: MainAxisSize.min);
     List<Widget> cardChildren =  [
       getSongImage(song),
       Text(song.songTitle, style: TextStyle(
@@ -171,7 +192,7 @@ class _HomeState extends State<Home> {
       Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
           style: TextStyle(
               fontWeight: FontWeight.bold, fontSize: 15)),
-      buttonRow
+      topButtonRow
     ];
 
     // Add buttons
@@ -185,7 +206,7 @@ class _HomeState extends State<Home> {
             margin: EdgeInsets.symmetric(horizontal: 5.0),
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(10),
-                color: Colors.white
+                color: Colors.white,
             ),
             child: Column(
                 children: cardChildren
@@ -226,7 +247,7 @@ class _HomeState extends State<Home> {
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25)
             ),
             CarouselSlider(
-              height: 200.0,
+              height: 300.0,
               items: _songCards(data.songs),
               enableInfiniteScroll: false,
             )
@@ -265,7 +286,18 @@ class _HomeState extends State<Home> {
             body = _render(snapshot.data);
             break;
           case ConnectionState.done:
-            body = Text("Connection to KRLX closed unexpectedly");
+            // Reinstate the dataStream, wait, and
+            this.dataStream = krlx.fetchStream();
+            body = Center(
+                child: Column(
+                  children: [SpinKitRotatingCircle(
+                    color: variables.theme.accentColor,
+                    size: 50.0,
+                  ),
+                    Text("Can't connect to KRLX, reloading...")
+                  ]
+                )
+            );
         }
         return MaterialApp(
             title: 'KRLX',
@@ -273,7 +305,6 @@ class _HomeState extends State<Home> {
               appBar: AppBar(
                 title: Image.asset("KRLXTitleBar.png"),
               ),
-              backgroundColor: variables.theme.backgroundColor,
               body: body,
               floatingActionButton: FloatingActionButton(
                 onPressed: () {
