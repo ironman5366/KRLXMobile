@@ -4,9 +4,9 @@ import 'package:video_player/video_player.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:ui' show Color;
-import 'dart:io';
 import 'dart:async';
 
 import 'variables.dart' as variables;
@@ -47,7 +47,8 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   VideoPlayerController _controller;
   Stream<krlx.KRLXUpdate> dataStream;
-
+  static const platform = const MethodChannel(
+      "krlx_mobile.willbeddow.com/media");
   @override
   void initState() {
     super.initState();
@@ -235,23 +236,26 @@ class _HomeState extends State<Home> {
       }
     });
     return Center(
-      child: Column(
-          children: [
-            Card(
-                child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: nowShowWidget
+      child: SingleChildScrollView(
+        child:
+          Column(
+              children: [
+                Card(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: nowShowWidget
+                    ),
                 ),
-            ),
-            Text("Songs", textAlign: TextAlign.center,
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25)
-            ),
-            CarouselSlider(
-              height: 300.0,
-              items: _songCards(data.songs),
-              enableInfiniteScroll: false,
-            )
-          ]
+                Text("Songs", textAlign: TextAlign.center,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25)
+                ),
+                CarouselSlider(
+                  height: 300.0,
+                  items: _songCards(data.songs),
+                  enableInfiniteScroll: false,
+                )
+              ]
+          )
       )
     );
   }
@@ -263,8 +267,34 @@ class _HomeState extends State<Home> {
     _controller.play();
   }
 
+  void playAudio(krlx.KRLXUpdate data) async{
+    // Play the audio and start a notification
+    playSeek();
+    // Pull out the required data for a notification
+    String currentShowName = "Unknown Show";
+    String hostString = "Unkown Hosts";
+    data.shows.forEach((String showId, krlx.Show show){
+      if (show.isCurrent){
+        currentShowName = show.showData["title"];
+        hostString = show.showData["djs"].join(",");
+      }
+    });
+    await platform.invokeMethod('showNotify', {
+      "showName": currentShowName,
+      "hosts": hostString
+    });
+  }
+
+  void pauseAudio() async{
+    // Pause the audio and remove the notification
+    _controller.pause();
+    await platform.invokeMethod("removeShowNotification");
+  }
+
   @override
   Widget build(BuildContext context) {
+    bool streamOnline = false;
+
     // Construct a Stream Builder widget
     return StreamBuilder(
       stream: this.dataStream,
@@ -284,6 +314,7 @@ class _HomeState extends State<Home> {
             break;
           case ConnectionState.active:
             body = _render(snapshot.data);
+            streamOnline = true;
             break;
           case ConnectionState.done:
             // Reinstate the dataStream, wait, and
@@ -299,27 +330,53 @@ class _HomeState extends State<Home> {
                 )
             );
         }
-        return MaterialApp(
-            title: 'KRLX',
-            home: Scaffold(
-              appBar: AppBar(
-                title: Image.asset("KRLXTitleBar.png"),
-              ),
-              body: body,
-              floatingActionButton: FloatingActionButton(
-                onPressed: () {
-                  setState(() {
-                    _controller.value.isPlaying
-                        ? _controller.pause()
-                        : this.playSeek();
-                  });
-                },
-                child: Icon(
-                  _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+        if (streamOnline){
+          return MaterialApp(
+              title: 'KRLX',
+              home: Scaffold(
+                appBar: AppBar(
+                  title: Image.asset("KRLXTitleBar.png"),
+                ),
+                body: body,
+                floatingActionButton: FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _controller.value.isPlaying
+                          ? this.pauseAudio()
+                          : this.playAudio(snapshot.data);
+                    });
+                  },
+                  child: Icon(
+                    _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  ),
                 ),
               ),
-            ),
-            theme: variables.theme);
+              theme: variables.theme);
+        }
+        else{
+          return MaterialApp(
+              title: 'KRLX',
+              home: Scaffold(
+                appBar: AppBar(
+                  title: Image.asset("KRLXTitleBar.png"),
+                ),
+                body: body,
+                floatingActionButton: FloatingActionButton(
+                  onPressed: () {
+                    setState(() {
+                      _controller.value.isPlaying
+                          ? this.pauseAudio()
+                          : this.playAudio(snapshot.data);
+                    });
+                  },
+                  child: Icon(
+                    _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                  ),
+                ),
+              ),
+              theme: variables.theme);
+        }
+
       },
     );
   }

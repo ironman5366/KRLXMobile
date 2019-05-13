@@ -229,7 +229,13 @@ class Show{
 
   String getDJImage(String pageData){
     var pageOps = dirReg.firstMatch(pageData);
-    String username = pageOps.group(1) ?? pageOps.group(3);
+    String username = pageOps.group(1);
+    // If the first regex matched an HTML tag instead of a username,
+    // failover to the second one. This usually happens when a user is not
+    // logged into the Carleton directory
+    if (username == null || username.contains("<")){
+      username = pageOps.group(2) ?? pageOps.group(3);
+    }
     String imageUrl = ldapPrefix+username;
     return imageUrl;
   }
@@ -265,18 +271,24 @@ class Show{
   }
   Future get hostsDone => _hostsDone;
 
-  DateTime _processStringTime(String timeString){
+  DateTime _processStringTime(String timeString, bool isEnd){
     DateTime now = DateTime.now();
     List<String> timeSplit = timeString.split(":");
     int hour = int.parse(timeSplit[0]);
     int minute = int.parse(timeSplit[1]);
     // Account for shows that start or end in a different day
     int day;
-    if (hour >= now.hour){
-      day = now.day;
+    // The end of the show might be a different day than the start
+    if (isEnd){
+      if (hour >= now.hour){
+        day = now.day;
+      }
+      else{
+        day = now.day+1;
+      }
     }
     else{
-      day = now.day+1;
+      day = now.day;
     }
     DateTime parsedTime = new DateTime(now.year, now.month, day, hour, minute);
     return parsedTime;
@@ -293,10 +305,10 @@ class Show{
     // and the end time to in an hour
     DateTime now = DateTime.now();
     this.startTime = _processStringTime(this.showData["start"] ??
-      now.hour.toString());
+      now.hour.toString(), false);
     this.endTime = _processStringTime(this.showData["end"] ?? now.add(
       Duration(hours: 1)
-    ).hour.toString());
+    ).hour.toString(), true);
     if (startTime.isBefore(now)){
       this.relTime = "Ends ${timeUntil(this.endTime)}";
     }
