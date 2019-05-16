@@ -145,57 +145,6 @@ class _HomeState extends State<Home> {
   }
 
   Widget _songCard(krlx.Song song){
-    // Add YouTube first because the YouTube link will always be there,
-    // and users should be able to find it in a consistent location
-    List<Widget> buttonChildren = [ OutlineButton.icon(icon:
-    new Icon(FontAwesomeIcons.youtube, color: Color(0xFFFF0000)),
-         onPressed: (){
-          _launchURL(song.youtubeLink);
-        },
-        label: Text("YouTube"), shape: StadiumBorder())];
-    // Add the Spotify link next if it exists
-    if (song.spotifyLink != null) {
-      buttonChildren.add(
-          OutlineButton.icon(icon: new Icon(FontAwesomeIcons.spotify,
-              color: Color(0xFF1ED760)), onPressed: () {
-                _launchURL(song.spotifyLink);
-              },
-              label: Text("Spotify"),
-              shape: StadiumBorder()
-          ),
-      );
-    }
-    List<Widget> bottomButtonChildren = new List<Widget>();
-    if (song.spotifyLink != null){
-      bottomButtonChildren.add(
-        OutlineButton.icon(icon: new Icon(FontAwesomeIcons.apple,
-            color: Colors.black),
-            onPressed: () {
-              _launchURL(song.spotifyLink);
-            },
-            label: Text("Apple Music"),
-            shape: StadiumBorder()
-        ),
-      );
-    }
-    Widget topButtonRow = ButtonBar(
-        children: buttonChildren, mainAxisSize: MainAxisSize.min);
-    Widget bottomButtonRow = ButtonBar(
-        children: bottomButtonChildren, mainAxisSize: MainAxisSize.min);
-    List<Widget> cardChildren =  [
-      getSongImage(song),
-      Text(song.songTitle, style: TextStyle(
-          fontWeight: FontWeight.bold, fontSize: 25),
-          overflow: TextOverflow.ellipsis),
-      Text("Artist: ${song.artist}", overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 15)),
-      Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-              fontWeight: FontWeight.bold, fontSize: 15)),
-      topButtonRow
-    ];
-
     // Add buttons
     return Builder(
       builder: (BuildContext context) {
@@ -209,8 +158,112 @@ class _HomeState extends State<Home> {
                 borderRadius: BorderRadius.circular(10),
                 color: Colors.white,
             ),
-            child: Column(
-                children: cardChildren
+            child: FutureBuilder(
+              future: song.processDone,
+              initialData: Column(
+                children:  [
+                  Image.asset("album.png",
+                    width: MediaQuery
+                        .of(context)
+                        .size
+                        .width-5,
+                    height: 150,
+                  ),
+                  Text(song.songTitle, style: TextStyle(
+                      fontWeight: FontWeight.bold, fontSize: 25),
+                      overflow: TextOverflow.ellipsis),
+                  Text("Artist: ${song.artist}", overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  Placeholder(key: Key(song.queryID))
+            ]
+              ),
+              builder: (BuildContext context, AsyncSnapshot snapshot){
+                List<Widget> songChildren;
+                switch (snapshot.connectionState){
+                  case ConnectionState.done:
+                  // Add YouTube first because the YouTube link will always be there,
+                  // and users should be able to find it in a consistent location
+                    List<Widget> buttonChildren = [ OutlineButton.icon(icon:
+                    new Icon(FontAwesomeIcons.youtube, color: Color(0xFFFF0000)),
+                        onPressed: (){
+                          _launchURL(song.youtubeLink);
+                        },
+                        label: Text("YouTube"), shape: StadiumBorder())];
+                    // Add the Spotify link next if it exists
+                    if (song.spotifyLink != null) {
+                      buttonChildren.add(
+                        OutlineButton.icon(icon: new Icon(FontAwesomeIcons.spotify,
+                            color: Color(0xFF1ED760)), onPressed: () {
+                          _launchURL(song.spotifyLink);
+                        },
+                            label: Text("Spotify"),
+                            shape: StadiumBorder()
+                        ),
+                      );
+                    }
+                    List<Widget> bottomButtonChildren = new List<Widget>();
+                    if (song.spotifyLink != null){
+                      bottomButtonChildren.add(
+                        OutlineButton.icon(icon: new Icon(FontAwesomeIcons.apple,
+                            color: Colors.black),
+                            onPressed: () {
+                              _launchURL(song.spotifyLink);
+                            },
+                            label: Text("Apple Music"),
+                            shape: StadiumBorder()
+                        ),
+                      );
+                    }
+                    Widget topButtonRow = ButtonBar(
+                        children: buttonChildren, mainAxisSize: MainAxisSize.min);
+                    Widget bottomButtonRow = ButtonBar(
+                        children: bottomButtonChildren, mainAxisSize: MainAxisSize.min);
+                    songChildren =  [
+                      getSongImage(song),
+                      Text(song.songTitle, style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 25),
+                          overflow: TextOverflow.ellipsis),
+                      Text("Artist: ${song.artist}", overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
+                      topButtonRow
+                    ];
+                    break;
+                  default:
+                    Key songKey = Key(song.queryID);
+                    // Loading card
+                    songChildren = [
+                      Image.asset("album.png",
+                        width: MediaQuery
+                            .of(context)
+                            .size
+                            .width-5,
+                        height: 150,
+                      ),
+                      Text(song.songTitle, style: TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 25),
+                          overflow: TextOverflow.ellipsis),
+                      Text("Artist: ${song.artist}", overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
+                      Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold, fontSize: 15)),
+                      Placeholder(key: songKey)
+                    ];
+                    break;
+                }
+                return Column(
+                  children: songChildren
+                );
+              }
             )
         );
       }
@@ -330,12 +383,18 @@ class _HomeState extends State<Home> {
                 )
             );
         }
+        List<Widget> appBarActions = [
+          IconButton(
+            icon: Icon(Icons.settings, color: variables.theme.backgroundColor)
+          )
+        ];
         if (streamOnline){
           return MaterialApp(
               title: 'KRLX',
               home: Scaffold(
                 appBar: AppBar(
                   title: Image.asset("KRLXTitleBar.png"),
+                  actions: appBarActions
                 ),
                 body: body,
                 floatingActionButton: FloatingActionButton(
@@ -359,6 +418,7 @@ class _HomeState extends State<Home> {
               home: Scaffold(
                 appBar: AppBar(
                   title: Image.asset("KRLXTitleBar.png"),
+                  actions: appBarActions
                 ),
                 body: body,
                 floatingActionButton: FloatingActionButton(

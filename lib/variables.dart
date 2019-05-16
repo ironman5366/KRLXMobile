@@ -15,3 +15,5 @@ final theme = new ThemeData(
   backgroundColor: Color(0xFFD3D4D9),
   fontFamily: "Arimo"
 );
+
+final Color placeholderGray = Color(0xFF9A9B9E);

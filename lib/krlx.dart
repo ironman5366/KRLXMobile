@@ -48,7 +48,14 @@ class CacheManager{
     // Open the cache file, read it, decode it from JSON, and return
     // the map
     String rawCacheData = await _cacheFile.readAsString();
-    return convert.jsonDecode(rawCacheData);
+    try{
+      return convert.jsonDecode(rawCacheData);
+    }
+    catch (FormatException){
+      print("Error: malformed cache, deleting");
+      writeCache("{}");
+      return {};
+    }
   }
 
   void writeCache(String cacheJSON){
@@ -176,7 +183,7 @@ class Song{
 
   Future _processingDone;
 
-  Future<void> processSong() async{
+  Future<Song> processSong() async{
     // Instantiate a SongQuery
     SongQuery queryObj = SongQuery(this.artist, this.songTitle, this.album);
     this.queryID = queryObj.queryString();
@@ -196,6 +203,7 @@ class Song{
     this.spotifyLink = results['spotify'];
     this.appleMusicLink = results['apple'];
     this.youtubeLink = results['youtube'];
+    return this;
   }
 
   Song(var songData){
@@ -347,7 +355,6 @@ class KRLXUpdate{
     Map<String, Song> songMap = new Map<String, Song>();
     for (var song in this._streamData['songs']){
       Song songObj = Song(song);
-      await songObj.processDone;
       songMap[songObj.queryID] = songObj;
     }
     return songMap;
