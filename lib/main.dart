@@ -5,12 +5,17 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappbrowser/flutter_inappbrowser.dart';
+import 'dart:convert' as convert;
 
 import 'dart:ui' show Color;
 import 'dart:async';
+import 'dart:io' show Platform;
 
 import 'variables.dart' as variables;
 import 'krlx.dart' as krlx;
+import 'settings.dart' as settings;
 
 void main() => runApp(KRLX());
 
@@ -47,8 +52,14 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   VideoPlayerController _controller;
   Stream<krlx.KRLXUpdate> dataStream;
-  static const platform = const MethodChannel(
+  krlx.KRLXUpdate currentData;
+  static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
+  // The URL for the webview to Chat with DJs. This is best done as a WebView
+  // because KRLX chat is canonically done through a based PureChat widget
+  static const String chatURL = "https://willbeddow.com/feature/krlx-mobile-chat";
+  InAppWebViewController webView;
+
   @override
   void initState() {
     super.initState();
@@ -288,8 +299,8 @@ class _HomeState extends State<Home> {
         showWidgets.add(showWidget);
       }
     });
-    return Center(
-      child: SingleChildScrollView(
+    return
+      SingleChildScrollView(
         child:
           Column(
               children: [
@@ -309,8 +320,7 @@ class _HomeState extends State<Home> {
                 )
               ]
           )
-      )
-    );
+      );
   }
 
   ///
@@ -320,28 +330,108 @@ class _HomeState extends State<Home> {
     _controller.play();
   }
 
-  void playAudio(krlx.KRLXUpdate data) async{
+  void playAudio() async{
+    krlx.KRLXUpdate data = this.currentData;
     // Play the audio and start a notification
     playSeek();
-    // Pull out the required data for a notification
-    String currentShowName = "Unknown Show";
-    String hostString = "Unkown Hosts";
-    data.shows.forEach((String showId, krlx.Show show){
-      if (show.isCurrent){
-        currentShowName = show.showData["title"];
-        hostString = show.showData["djs"].join(",");
-      }
-    });
-    await platform.invokeMethod('showNotify', {
-      "showName": currentShowName,
-      "hosts": hostString
-    });
+    if (data != null){
+      // Pull out the required data for a notification
+      String currentShowName = "Unknown Show";
+      String hostString = "Unkown Hosts";
+      data.shows.forEach((String showId, krlx.Show show){
+        if (show.isCurrent){
+          currentShowName = show.showData["title"];
+          hostString = show.showData["djs"].join(",");
+        }
+      });
+      await methodPlatform.invokeMethod('showNotify', {
+        "showName": currentShowName,
+        "hosts": hostString
+      });
+    }
   }
 
   void pauseAudio() async{
     // Pause the audio and remove the notification
     _controller.pause();
-    await platform.invokeMethod("removeShowNotification");
+    await methodPlatform.invokeMethod("removeShowNotification");
+  }
+
+  Widget mediaButton(){
+    return FloatingActionButton(
+      onPressed: () {
+        setState(() {
+          _controller.value.isPlaying
+              ? this.pauseAudio()
+              : this.playAudio();
+        });
+      },
+      child: Icon(
+        _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+      ),
+    );
+  }
+
+  Widget schedulePage(){
+    return Text("Schedule here");
+  }
+
+  Map currentDjs(){
+    Map djs;
+    this.currentData.shows.forEach((String showId, krlx.Show show){
+      if (show.isCurrent){
+        djs = show.hosts;
+        return;
+      }
+    });
+    return djs;
+  }
+
+  Widget chatPage(String useChatURL){
+    return Container(child:
+      InAppWebView(
+      initialOptions: {
+        "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
+        "domStorageEnabled": true,
+        "builtInZoomControls": true
+      },
+      initialUrl: useChatURL,
+      onConsoleMessage: (InAppWebViewController controller, ConsoleMessage message){
+        print("""
+                        console output:
+                        sourceURL: ${message.sourceURL}
+                        lineNumber: ${message.lineNumber}
+                        message: ${message.message}
+                        messageLevel: ${message.messageLevel}
+                      """);
+      },
+      onWebViewCreated: (InAppWebViewController controller) {
+        webView = controller;
+        webView.addJavaScriptHandler("widgetLoaded", (var result){
+          print(result);
+        });
+      },
+    ));
+  }
+
+  Widget krlxHomePage(){
+    return Container(
+      child: InAppWebView(
+        initialUrl: "http://krlx.org",
+        initialOptions: {
+          "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
+          "useShouldOverrideUrlLoading": true
+        },
+        shouldOverrideUrlLoading: (InAppWebViewController controller, String url){
+          if (url.startsWith("http") && !url.contains("krlx.org")){
+            _launchURL(url);
+          }
+          else{
+            controller.loadUrl(url);
+          }
+        },
+      )
+    );
   }
 
   @override
@@ -366,6 +456,7 @@ class _HomeState extends State<Home> {
             ));
             break;
           case ConnectionState.active:
+            this.currentData = snapshot.data;
             body = _render(snapshot.data);
             streamOnline = true;
             break;
@@ -385,58 +476,55 @@ class _HomeState extends State<Home> {
         }
         List<Widget> appBarActions = [
           IconButton(
-            icon: Icon(Icons.settings, color: variables.theme.backgroundColor)
+            icon: Icon(Icons.settings, color: variables.theme.backgroundColor),
+            onPressed: (){
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) =>
+                      settings.SettingsScreen()));
+            }
           )
         ];
-        if (streamOnline){
-          return MaterialApp(
-              title: 'KRLX',
-              home: Scaffold(
-                appBar: AppBar(
-                  title: Image.asset("KRLXTitleBar.png"),
-                  actions: appBarActions
-                ),
-                body: body,
-                floatingActionButton: FloatingActionButton(
-                  onPressed: () {
-                    setState(() {
-                      _controller.value.isPlaying
-                          ? this.pauseAudio()
-                          : this.playAudio(snapshot.data);
-                    });
-                  },
-                  child: Icon(
-                    _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                  ),
-                ),
-              ),
-              theme: variables.theme);
+        String encodedDjString;
+        if (this.currentData != null){
+          var djData = convert.utf8.encode(convert.jsonEncode(
+            this.currentDjs()
+          ));
+          encodedDjString = convert.base64Encode(djData);
         }
         else{
-          return MaterialApp(
-              title: 'KRLX',
-              home: Scaffold(
-                appBar: AppBar(
-                  title: Image.asset("KRLXTitleBar.png"),
-                  actions: appBarActions
-                ),
-                body: body,
-                floatingActionButton: FloatingActionButton(
-                  onPressed: () {
-                    setState(() {
-                      _controller.value.isPlaying
-                          ? this.pauseAudio()
-                          : this.playAudio(snapshot.data);
-                    });
-                  },
-                  child: Icon(
-                    _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
-                  ),
-                ),
-              ),
-              theme: variables.theme);
+          encodedDjString = null;
         }
-
+        String useChatURL = encodedDjString != null ?
+            "$chatURL?djs=$encodedDjString" :
+            chatURL;
+        print("Using chatURL ${useChatURL}");
+        return MaterialApp(
+            title: 'KRLX',
+            home: DefaultTabController(length: 4,
+            child: Scaffold(
+              appBar: AppBar(
+                title: Image.asset("KRLXTitleBar.png"),
+                actions: appBarActions,
+                bottom: TabBar(tabs:[
+                  Tab(icon: Icon(Icons.radio), text: "Now"),
+                  Tab(icon: Icon(Icons.chat_bubble), text: "Chat"),
+                  Tab(icon: Icon(Icons.calendar_today), text: "Schedule"),
+                  Tab(icon: Icon(Icons.home), text: "KRLX")
+                ]
+              )
+              ),
+              body: TabBarView(
+                children: [
+                  body,
+                  this.chatPage(useChatURL),
+                  this.schedulePage(),
+                  this.krlxHomePage()
+                ]
+              ),
+              floatingActionButton: this.mediaButton()
+            )
+            ),
+            theme: variables.theme);
       },
     );
   }
