@@ -15,6 +15,7 @@ import 'dart:io' show Platform;
 
 import 'variables.dart' as variables;
 import 'krlx.dart' as krlx;
+import 'schedule.dart' as schedule;
 import 'settings.dart' as settings;
 
 void main() => runApp(KRLX());
@@ -52,7 +53,10 @@ class Home extends StatefulWidget {
 class _HomeState extends State<Home> {
   VideoPlayerController _controller;
   Stream<krlx.KRLXUpdate> dataStream;
+  bool chatWidgetLoaded = false;
   krlx.KRLXUpdate currentData;
+  schedule.ShowCalendar showSchedule;
+
   static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
   // The URL for the webview to Chat with DJs. This is best done as a WebView
@@ -112,7 +116,6 @@ class _HomeState extends State<Home> {
     cardChildren.add(ListTile(
         title: Text(
           showTitle,
-          textAlign: TextAlign.center,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
@@ -388,8 +391,8 @@ class _HomeState extends State<Home> {
   }
 
   Widget chatPage(String useChatURL){
-    return Container(child:
-      InAppWebView(
+    chatWidgetLoaded = false;
+    InAppWebView chatWebview = InAppWebView(
       initialOptions: {
         "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
         "domStorageEnabled": true,
@@ -398,20 +401,39 @@ class _HomeState extends State<Home> {
       initialUrl: useChatURL,
       onConsoleMessage: (InAppWebViewController controller, ConsoleMessage message){
         print("""
-                        console output:
-                        sourceURL: ${message.sourceURL}
-                        lineNumber: ${message.lineNumber}
-                        message: ${message.message}
-                        messageLevel: ${message.messageLevel}
-                      """);
+                    console output:
+                    sourceURL: ${message.sourceURL}
+                    lineNumber: ${message.lineNumber}
+                    message: ${message.message}
+                    messageLevel: ${message.messageLevel}
+                    """);
       },
       onWebViewCreated: (InAppWebViewController controller) {
+        print("WebView created");
         webView = controller;
         webView.addJavaScriptHandler("widgetLoaded", (var result){
-          print(result);
+          print("Widget finished loading");
+          chatWidgetLoaded = true;
+          FocusScope.of(context).requestFocus(FocusNode());
+          controller.injectScriptCode('''
+        inputs = document.querySelectorAll("input[type=text]");
+        inputs.forEach(function(inp) {
+            let finalInput = inp;
+            finalInput.addEventListener("focus", function() {
+                console.log('focus');
+                input = finalInput;
+           });
+           finalInput.addEventListener("focusout", function() {
+               console.log('unfocus');
+           });
+      });
+''');
         });
       },
-    ));
+    );
+   return Container(
+     child: chatWebview
+   );
   }
 
   Widget krlxHomePage(){
@@ -437,7 +459,8 @@ class _HomeState extends State<Home> {
   @override
   Widget build(BuildContext context) {
     bool streamOnline = false;
-
+    // Load the schedule
+    this.showSchedule = new schedule.ShowCalendar();
     // Construct a Stream Builder widget
     return StreamBuilder(
       stream: this.dataStream,
@@ -464,14 +487,29 @@ class _HomeState extends State<Home> {
             // Reinstate the dataStream, wait, and
             this.dataStream = krlx.fetchStream();
             body = Center(
-                child: Column(
-                  children: [SpinKitRotatingCircle(
-                    color: variables.theme.accentColor,
-                    size: 50.0,
-                  ),
-                    Text("Can't connect to KRLX, reloading...")
-                  ]
-                )
+              child: Column(
+                children: [
+                  Card(child:
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text("KRLX is offline", style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20
+                          )),
+                          Text("The KRLX stream cannot be loaded. This usually "
+                              "means that the stream is offline, as it is "
+                              "on breaks. If you think it should be online "
+                              "right now, try live.krlx.org"),
+                        OutlineButton.icon(icon: new Icon(Icons.link,
+                            ), onPressed: () {
+                          _launchURL("http://live.krlx.org");
+                        }, label: Text("live.krlx.org")),
+                        ]
+                      )
+                  )
+                ]
+              )
             );
         }
         List<Widget> appBarActions = [
@@ -498,33 +536,59 @@ class _HomeState extends State<Home> {
             "$chatURL?djs=$encodedDjString" :
             chatURL;
         print("Using chatURL ${useChatURL}");
-        return MaterialApp(
-            title: 'KRLX',
-            home: DefaultTabController(length: 4,
-            child: Scaffold(
-              appBar: AppBar(
-                title: Image.asset("KRLXTitleBar.png"),
-                actions: appBarActions,
-                bottom: TabBar(tabs:[
-                  Tab(icon: Icon(Icons.radio), text: "Now"),
-                  Tab(icon: Icon(Icons.chat_bubble), text: "Chat"),
-                  Tab(icon: Icon(Icons.calendar_today), text: "Schedule"),
-                  Tab(icon: Icon(Icons.home), text: "KRLX")
-                ]
-              )
+        if (streamOnline){
+          return MaterialApp(
+              title: 'KRLX',
+              home: DefaultTabController(length: 4,
+                  child: Scaffold(
+                      appBar: AppBar(
+                          title: Image.asset("KRLXTitleBar.png"),
+                          actions: appBarActions,
+                          bottom: TabBar(tabs:[
+                            Tab(icon: Icon(Icons.radio), text: "Now"),
+                            Tab(icon: Icon(Icons.calendar_today), text: "Schedule"),
+                            Tab(icon: Icon(Icons.chat_bubble), text: "Chat"),
+                            Tab(icon: Icon(Icons.home), text: "KRLX")
+                          ]
+                          )
+                      ),
+                      body: TabBarView(
+                          children: [
+                            body,
+                            this.schedulePage(),
+                            this.chatPage(useChatURL),
+                            this.krlxHomePage()
+                          ]
+                      ),
+                      floatingActionButton: this.mediaButton()
+                  )
               ),
-              body: TabBarView(
-                children: [
-                  body,
-                  this.chatPage(useChatURL),
-                  this.schedulePage(),
-                  this.krlxHomePage()
-                ]
+              theme: variables.theme);
+        }
+        else{
+          return MaterialApp(
+              title: 'KRLX',
+              home: DefaultTabController(length: 2,
+                  child: Scaffold(
+                      appBar: AppBar(
+                          title: Image.asset("KRLXTitleBar.png"),
+                          actions: appBarActions,
+                          bottom: TabBar(tabs:[
+                            Tab(icon: Icon(Icons.radio), text: "Now"),
+                            Tab(icon: Icon(Icons.home), text: "KRLX"),
+                          ]
+                          )
+                      ),
+                      body: TabBarView(
+                          children: [
+                            body,
+                            this.krlxHomePage()
+                          ]
+                      )
+                  )
               ),
-              floatingActionButton: this.mediaButton()
-            )
-            ),
-            theme: variables.theme);
+              theme: variables.theme);
+        }
       },
     );
   }
