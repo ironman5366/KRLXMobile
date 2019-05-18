@@ -8,6 +8,10 @@ import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_inappbrowser/flutter_inappbrowser.dart';
 import 'dart:convert' as convert;
+import 'package:side_header_list_view/side_header_list_view.dart';
+import 'package:intl/intl.dart';
+
+
 
 import 'dart:ui' show Color;
 import 'dart:async';
@@ -15,6 +19,7 @@ import 'dart:io' show Platform;
 
 import 'variables.dart' as variables;
 import 'krlx.dart' as krlx;
+import 'carleton_utils.dart' as carleton_utils;
 import 'schedule.dart' as schedule;
 import 'settings.dart' as settings;
 
@@ -56,6 +61,7 @@ class _HomeState extends State<Home> {
   bool chatWidgetLoaded = false;
   krlx.KRLXUpdate currentData;
   schedule.ShowCalendar showSchedule;
+  carleton_utils.Term currentTerm = carleton_utils.Term();
 
   static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
@@ -374,9 +380,72 @@ class _HomeState extends State<Home> {
       ),
     );
   }
-
+  /*
+  Text("KRLX ${this.currentTerm.termDisplay()}",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+   */
   Widget schedulePage(){
-    return Text("Schedule here");
+    return
+        FutureBuilder(
+          future: this.showSchedule.shows,
+          initialData: Center(
+              child: SpinKitRotatingCircle(
+                color: variables.theme.accentColor,
+                size: 50.0,
+              )),
+          builder: ((BuildContext context, AsyncSnapshot snapshot){
+            switch (snapshot.connectionState){
+              case ConnectionState.done:
+
+                return SideHeaderListView(
+                  itemCount: snapshot.data.length,
+                  itemExtend: 100.0,
+                  headerBuilder: (BuildContext context, int index){
+                    DateTime timeRepr = snapshot.data[index].startTime;
+                    DateFormat formatter = new DateFormat.E();
+                    String dayAbbrv = formatter.format(timeRepr);
+                    return SizedBox(
+                      width: 45,
+                      child: Column(
+                        children: [
+                          Text(dayAbbrv, style: Theme.of(context).textTheme.headline),
+                        ]
+                      )
+                    );
+                  },
+                  itemBuilder: ((BuildContext context, int index){
+                    schedule.ShowEvent eventRepr = snapshot.data[index];
+
+                    return SizedBox(width: 150,child:
+                    Card(child:
+                    ListTile(
+                        title: Text(
+                          eventRepr.description.replaceAll("\\", ""),
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis
+                        ),
+                        // subtitle: Text("Intermediate", style: TextStyle(color: Colors.white)),
+                        subtitle: Text(eventRepr.djs.replaceAll("\\", ""), overflow:
+                            TextOverflow.ellipsis),
+                        trailing: Text(eventRepr.reprDuration, textAlign: TextAlign.left,)
+                    )
+                    )
+                    );
+                  }),
+                  hasSameHeader: (int firstIdx, int secondIdx){
+                    return (snapshot.data[firstIdx].startTime.day ==
+                            snapshot.data[secondIdx].startTime.day);
+                  },
+                );
+              default:
+                return Center(
+                    child: SpinKitRotatingCircle(
+                      color: variables.theme.accentColor,
+                      size: 50.0,
+                    ));
+            }
+          })
+        );
   }
 
   Map currentDjs(){
@@ -411,24 +480,13 @@ class _HomeState extends State<Home> {
       onWebViewCreated: (InAppWebViewController controller) {
         print("WebView created");
         webView = controller;
+        /*
         webView.addJavaScriptHandler("widgetLoaded", (var result){
           print("Widget finished loading");
           chatWidgetLoaded = true;
           FocusScope.of(context).requestFocus(FocusNode());
-          controller.injectScriptCode('''
-        inputs = document.querySelectorAll("input[type=text]");
-        inputs.forEach(function(inp) {
-            let finalInput = inp;
-            finalInput.addEventListener("focus", function() {
-                console.log('focus');
-                input = finalInput;
-           });
-           finalInput.addEventListener("focusout", function() {
-               console.log('unfocus');
-           });
-      });
-''');
         });
+        */
       },
     );
    return Container(

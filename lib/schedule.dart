@@ -1,4 +1,9 @@
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
+
+
+import 'carleton_utils.dart' as carleton_utils;
 
 import 'dart:io';
 
@@ -6,10 +11,68 @@ import 'dart:io';
 const String calendarUrl =
     "https://calendar.google.com/calendar/ical/krlxradio88.1%40gmail.com/public/basic.ics";
 
-class ShowEvent{
-  ShowEvent(Map i){
-    // Use the the datetime libraries to figure out if an event is current
+class ShowEvent {
+  bool validShow;
+  String djs;
+  String description;
+  DateTime startTime;
+  String endHour;
+  DateFormat _endFormat = new DateFormat("h:mm");
+  DateFormat _reprFormat = new DateFormat("h:mm");
+  String reprDuration;
 
+  DateTime _parseICalTime(String timeString) {
+    String timeZonePlus = timeString.split("TZID=")[1];
+    List<String> timeZoneSplit = timeZonePlus.split(":");
+    String timeZone = timeZoneSplit[0];
+    String ISOTime = timeZoneSplit[1];
+    DateTime parsedTime = DateTime.parse(ISOTime);
+    return parsedTime;
+  }
+
+  ShowEvent(Map eventData, carleton_utils.Term currentTerm) {
+    // Check ot see if the event has the 'freq' key
+    if (!eventData.containsKey("freq") || eventData['freq'] == null) {
+      validShow = false;
+      return;
+    }
+    DateTime now = DateTime.now();
+    // Use the the datetime libraries to figure out if an event is current
+    DateTime startTime = _parseICalTime(eventData["dtStart"]);
+    DateTime endTime = _parseICalTime(eventData["dtEnd"]);
+    // Check to make sure that the startTime is this term
+    if (startTime.year == now.year) {
+      String showTerm = carleton_utils.Term.getTerm(startTime);
+      if (showTerm == currentTerm.termDisplay(showYear: false)) {
+        // Now that we have the times that the show started this term, put it
+        // into relative time to this week
+        int addDiff;
+        if (startTime.weekday == now.weekday) {
+          addDiff = 0;
+        }
+        else {
+          addDiff = (now.weekday - startTime.weekday).abs();
+        }
+        // Calculate the number of days difference between now and when the
+        // show first started, and add that difference to it
+        int diffDays = startTime
+            .difference(now)
+            .inDays
+            .abs();
+        DateTime thisWeekStart = startTime.add(
+            Duration(days: diffDays + addDiff));
+        this.startTime = thisWeekStart;
+        // Generate a string representing the show end
+        this.djs = eventData['djs'];
+        this.description = eventData['description'];
+        this.endHour = this._endFormat.format(endTime);
+        this.reprDuration = "${this._reprFormat.format(this.startTime)}-"
+            "${this.endHour}";
+        validShow = true;
+        return;
+      }
+    }
+    validShow = false;
   }
 }
 
@@ -18,6 +81,7 @@ class ShowCalendar{
   DateTime startTime;
   DateTime endTime;
   Future<List<ShowEvent>> shows;
+  carleton_utils.Term term;
 
   List<Map> calendarData(String icalRawData){
     List<String> dataLines = icalRawData.split("\r\n");
@@ -43,7 +107,6 @@ class ShowCalendar{
     while (calIt.moveNext() && calIt.current != "END:VCALENDAR"){
       try {
         Map eventChunk = {};
-        print(calIt.current);
         assert (calIt.current == "BEGIN:VEVENT");
         calIt.moveNext();
         if (!calIt.current.startsWith("DTSTART;")) {
@@ -105,21 +168,40 @@ class ShowCalendar{
   Future<List<ShowEvent>> processShows() async{
     List<ShowEvent> showList = new List<ShowEvent>();
     // Download the calendar
-    print("Downloading calendar");
-    http.Response calendarResponse = await http.get(calendarUrl);
-    print("Finished downloading calendar");
-    String iCalData = calendarResponse.body;
+
+    // Cache the file by term
+    Directory cacheDir = await getApplicationDocumentsDirectory();
+    term = carleton_utils.Term();
+    String termUID = term.termUID;
+    String cacheFileName = '${cacheDir.path}/$termUID.ics';
+    File cacheFile = File(cacheFileName);
+    bool cacheExists = await cacheFile.exists();
+    if (cacheExists){
+     print("Got schedule data for term ${term.termDisplay()} from cache");
+    }
+    else{
+      print("Downloading calendar");
+      http.Response calendarResponse = await http.get(calendarUrl);
+      print("Finished downloading calendar");
+      // Create the cache
+      cacheFile.writeAsBytesSync(calendarResponse.bodyBytes);
+    }
+    String iCalData = cacheFile.readAsStringSync();
     List<Map> processedCal = this.calendarData(iCalData);
     // Take processedCal and turn it into showEvents
     processedCal.forEach((Map i){
-      showList.add(ShowEvent(i));
+      ShowEvent processedEvent = ShowEvent(i, term);
+      if (processedEvent.validShow){
+        showList.add(processedEvent);
+      }
     });
+    showList.sort((a,b) => a.startTime.compareTo(b.startTime));
+    print("Processed through ${processedCal.length} events, found "
+        "${showList.length} applicable to this week");
     return showList;
   }
 
   ShowCalendar(){
-    // this.startTime = startTime;
-    //this.endTime = endTime;
     shows = this.processShows();
   }
 
