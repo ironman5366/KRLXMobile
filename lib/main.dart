@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:video_player/video_player.dart';
+import 'package:android_webview/native_webview.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_inappbrowser/flutter_inappbrowser.dart';
 import 'dart:convert' as convert;
 import 'package:side_header_list_view/side_header_list_view.dart';
 import 'package:intl/intl.dart';
-
 
 
 import 'dart:ui' show Color;
@@ -460,63 +459,71 @@ class _HomeState extends State<Home> {
   }
 
   Widget chatPage(String useChatURL){
-    chatWidgetLoaded = false;
-    InAppWebView chatWebview = InAppWebView(
-      initialOptions: {
-        "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
-        "domStorageEnabled": true,
-        "builtInZoomControls": true
-      },
-      initialUrl: useChatURL,
-      onConsoleMessage: (InAppWebViewController controller, ConsoleMessage message){
-        print("""
+    if (Platform.isAndroid){
+      return Container(
+          child: NativeWebView(
+            onWebViewCreated: (WebViewController controller){
+              controller.setUrl(useChatURL);
+            },
+          )
+      );
+    }
+    else{
+      chatWidgetLoaded = false;
+      InAppWebView chatWebview = InAppWebView(
+        initialOptions: {
+          "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
+          "domStorageEnabled": true,
+          "builtInZoomControls": true
+        },
+        initialUrl: useChatURL,
+        onConsoleMessage: (InAppWebViewController controller, ConsoleMessage message){
+          print("""
                     console output:
                     sourceURL: ${message.sourceURL}
                     lineNumber: ${message.lineNumber}
                     message: ${message.message}
                     messageLevel: ${message.messageLevel}
                     """);
-      },
-      onWebViewCreated: (InAppWebViewController controller) {
-        print("WebView created");
-        webView = controller;
-        /*
+        },
+        onWebViewCreated: (InAppWebViewController controller) {
+          print("WebView created");
+          webView = controller;
+          /*
         webView.addJavaScriptHandler("widgetLoaded", (var result){
           print("Widget finished loading");
           chatWidgetLoaded = true;
           FocusScope.of(context).requestFocus(FocusNode());
         });
         */
-      },
-    );
-   return Container(
-     child: chatWebview
-   );
+        },
+      );
+      return Container(
+          child: chatWebview
+      );
+    }
+
+
   }
 
   Widget krlxHomePage(){
-    if (Platform.isAndroid){
-      // TODO: return a PlatformView WebView
-    }
-    else{
-      return Container(
-          child: InAppWebView(
-            initialUrl: "http://krlx.org",
-            initialOptions: {
-              "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
-              "useShouldOverrideUrlLoading": true
-            },
-            shouldOverrideUrlLoading: (InAppWebViewController controller, String url){
-              if (url.startsWith("http") && !url.contains("krlx.org")){
-                _launchURL(url);
-              }
-              else{
-                controller.loadUrl(url);
-              }
-            },
-          )
-      );
-    }
+    return Container(
+        child: InAppWebView(
+          initialUrl: "http://krlx.org",
+          initialOptions: {
+            "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
+            "useShouldOverrideUrlLoading": true
+          },
+          shouldOverrideUrlLoading: (InAppWebViewController controller, String url){
+            if (url.startsWith("http") && !url.contains("krlx.org")){
+              _launchURL(url);
+            }
+            else{
+              controller.loadUrl(url);
+            }
+          },
+        )
+    );
   }
 
   @override
