@@ -283,7 +283,13 @@ class Show{
     DateTime now = DateTime.now();
     List<String> timeSplit = timeString.split(":");
     int hour = int.parse(timeSplit[0]);
-    int minute = int.parse(timeSplit[1]);
+    int minute;
+    try{
+      minute = int.parse(timeSplit[1]);
+    }
+    catch (RangeError){
+      minute = 0;
+    }
     // Account for shows that start or end in a different day
     int day;
     // The end of the show might be a different day than the start
@@ -413,7 +419,7 @@ Stream<KRLXUpdate> fetchStream() async* {
     // Create the cache
     await cacheFile.create();
     // An empty JSON dictionary
-    cacheFile.writeAsString("{}");
+    cacheFile.writeAsStringSync("{}");
   }
   cache = CacheManager(cacheFile);
   print("Got cache");

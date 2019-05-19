@@ -1,4 +1,14 @@
 import 'dart:convert' as convert;
+import 'package:wifi/wifi.dart';
+
+Future<String> ipAddr = Wifi.ip;
+
+Future<bool> get atCarleton async {
+  String ip = await ipAddr;
+  RegExp carlTest = new RegExp("137.22.\d*.\d*");
+  bool isCarl = carlTest.hasMatch(ip);
+  return isCarl;
+}
 
 /// A class representing the current Carleton term (Fall, Winter, Spring)
 class Term{

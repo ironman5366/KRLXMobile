@@ -495,23 +495,28 @@ class _HomeState extends State<Home> {
   }
 
   Widget krlxHomePage(){
-    return Container(
-      child: InAppWebView(
-        initialUrl: "http://krlx.org",
-        initialOptions: {
-          "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
-          "useShouldOverrideUrlLoading": true
-        },
-        shouldOverrideUrlLoading: (InAppWebViewController controller, String url){
-          if (url.startsWith("http") && !url.contains("krlx.org")){
-            _launchURL(url);
-          }
-          else{
-            controller.loadUrl(url);
-          }
-        },
-      )
-    );
+    if (Platform.isAndroid){
+      // TODO: return a PlatformView WebView
+    }
+    else{
+      return Container(
+          child: InAppWebView(
+            initialUrl: "http://krlx.org",
+            initialOptions: {
+              "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile",
+              "useShouldOverrideUrlLoading": true
+            },
+            shouldOverrideUrlLoading: (InAppWebViewController controller, String url){
+              if (url.startsWith("http") && !url.contains("krlx.org")){
+                _launchURL(url);
+              }
+              else{
+                controller.loadUrl(url);
+              }
+            },
+          )
+      );
+    }
   }
 
   @override
@@ -572,13 +577,23 @@ class _HomeState extends State<Home> {
         }
         List<Widget> appBarActions = [
           IconButton(
-            icon: Icon(Icons.settings, color: variables.theme.backgroundColor),
+            icon: Icon(Icons.info, color: variables.theme.backgroundColor),
             onPressed: (){
               Navigator.push(context,
-                  MaterialPageRoute(builder: (context) =>
-                      settings.SettingsScreen()));
+                MaterialPageRoute(builder: (context) =>
+                    settings.InfoScreen()
+                )
+              );
             }
-          )
+          ),
+          IconButton(
+              icon: Icon(Icons.settings, color: variables.theme.backgroundColor),
+              onPressed: (){
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) =>
+                        settings.SettingsScreen()));
+              }
+          ),
         ];
         String encodedDjString;
         if (this.currentData != null){

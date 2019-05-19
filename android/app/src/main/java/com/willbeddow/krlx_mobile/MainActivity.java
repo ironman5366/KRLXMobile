@@ -4,6 +4,7 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.graphics.Bitmap;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import androidx.core.app.NotificationCompat;
@@ -85,6 +86,8 @@ public class MainActivity extends FlutterActivity {
   }
 
   public void showNotify(String showName, String hosts){
+      // Start a media session
+      //MediaPlayer mediaPlayer = MediaPlayer.create( )
       // If currentShowNotfication exists, delete it
       this.removeCurrentNotification();
       createNotificationChannel();

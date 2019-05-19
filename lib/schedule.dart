@@ -48,7 +48,11 @@ class ShowEvent {
         // into relative time to this week
         int addDiff;
         if (startTime.weekday == now.weekday) {
-          addDiff = 0;
+          addDiff = 1;
+          if (startTime.compareTo(now) > 0){
+            validShow = false;
+            return;
+          }
         }
         else {
           addDiff = (now.weekday - startTime.weekday).abs();
