@@ -352,10 +352,12 @@ class _HomeState extends State<Home> {
           hostString = show.showData["djs"].join(",");
         }
       });
-      await methodPlatform.invokeMethod('showNotify', {
-        "showName": currentShowName,
-        "hosts": hostString
-      });
+      if (Platform.isAndroid){
+        await methodPlatform.invokeMethod('showNotify', {
+          "showName": currentShowName,
+          "hosts": hostString
+        });
+      }
     }
   }
 

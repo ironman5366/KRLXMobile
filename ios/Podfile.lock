@@ -1,22 +1,58 @@
 PODS:
+  - android_webview (0.0.1):
+    - Flutter
   - Flutter (1.0.0)
+  - flutter_inappbrowser (0.0.1):
+    - Flutter
+  - path_provider (0.0.1):
+    - Flutter
+  - url_launcher (0.0.1):
+    - Flutter
   - video_player (0.0.1):
+    - Flutter
+  - webview_flutter (0.0.1):
+    - Flutter
+  - wifi (0.0.1):
     - Flutter
 
 DEPENDENCIES:
+  - android_webview (from `.symlinks/plugins/android_webview/ios`)
   - Flutter (from `.symlinks/flutter/ios`)
+  - flutter_inappbrowser (from `.symlinks/plugins/flutter_inappbrowser/ios`)
+  - path_provider (from `.symlinks/plugins/path_provider/ios`)
+  - url_launcher (from `.symlinks/plugins/url_launcher/ios`)
   - video_player (from `.symlinks/plugins/video_player/ios`)
+  - webview_flutter (from `.symlinks/plugins/webview_flutter/ios`)
+  - wifi (from `.symlinks/plugins/wifi/ios`)
 
 EXTERNAL SOURCES:
+  android_webview:
+    :path: ".symlinks/plugins/android_webview/ios"
   Flutter:
     :path: ".symlinks/flutter/ios"
+  flutter_inappbrowser:
+    :path: ".symlinks/plugins/flutter_inappbrowser/ios"
+  path_provider:
+    :path: ".symlinks/plugins/path_provider/ios"
+  url_launcher:
+    :path: ".symlinks/plugins/url_launcher/ios"
   video_player:
     :path: ".symlinks/plugins/video_player/ios"
+  webview_flutter:
+    :path: ".symlinks/plugins/webview_flutter/ios"
+  wifi:
+    :path: ".symlinks/plugins/wifi/ios"
 
 SPEC CHECKSUMS:
+  android_webview: 1097dc60aa76fe0fce2183174922be1659dc09e3
   Flutter: 58dd7d1b27887414a370fcccb9e645c08ffd7a6a
+  flutter_inappbrowser: 93214ba3c0bc9db42e879f808d993b6d3be32379
+  path_provider: f96fff6166a8867510d2c25fdcc346327cc4b259
+  url_launcher: 0067ddb8f10d36786672aa0722a21717dba3a298
   video_player: 3964090a33353060ed7f58aa6427c7b4b208ec21
+  webview_flutter: 1aa7604e6cdb451a9b7ed2c37d5454c0b440246b
+  wifi: d7d77c94109e36c4175d845f0a5964eadba71060
 
-PODFILE CHECKSUM: aff02bfeed411c636180d6812254b2daeea14d09
+PODFILE CHECKSUM: 40497297399a7ace269fa025ad39341240a02fd6
 
 COCOAPODS: 1.6.1
