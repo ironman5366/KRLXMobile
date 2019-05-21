@@ -61,7 +61,7 @@ class _HomeState extends State<Home> {
   krlx.KRLXUpdate currentData;
   schedule.ShowCalendar showSchedule;
   carleton_utils.Term currentTerm = carleton_utils.Term();
-
+  String streamUrl = 'http://garnet.krlx.org:8000/krlx';
   static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
   // The URL for the webview to Chat with DJs. This is best done as a WebView
@@ -73,7 +73,7 @@ class _HomeState extends State<Home> {
   void initState() {
     super.initState();
     _controller =
-        VideoPlayerController.network('http://garnet.krlx.org:8000/krlx')
+        VideoPlayerController.network(streamUrl)
           ..initialize().then((_) {
             // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
             setState(() {});
@@ -331,15 +331,22 @@ class _HomeState extends State<Home> {
 
   ///
   /// Go to the end of the stream when the user clicks play
-  void playSeek(){
+  Future<void> playSeek() async{
+    /*
     _controller.seekTo(_controller.value.duration);
     _controller.play();
+    */
+    // Call the platform channel to play the media
+    await methodPlatform.invokeMethod('play', {
+      "contentUrl": streamUrl
+    });
+
   }
 
   void playAudio() async{
     krlx.KRLXUpdate data = this.currentData;
     // Play the audio and start a notification
-    playSeek();
+    await playSeek();
     if (data != null){
       // Pull out the required data for a notification
       String currentShowName = "Unknown Show";

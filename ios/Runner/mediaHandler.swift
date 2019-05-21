@@ -13,7 +13,7 @@ import AVKit
 
 class mediaHandler{
     var player: AVPlayer?
-
+    
     init(streamURL: String){
         do {
             try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
