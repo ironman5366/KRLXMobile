@@ -197,7 +197,6 @@ class _HomeState extends State<Home> {
                   Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 15)),
-                  Placeholder(key: Key(song.queryID))
             ]
               ),
               builder: (BuildContext context, AsyncSnapshot snapshot){
@@ -274,8 +273,7 @@ class _HomeState extends State<Home> {
                               fontWeight: FontWeight.bold, fontSize: 15)),
                       Text("Played By: ${song.playedBy}", overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15)),
-                      Placeholder(key: songKey)
+                              fontWeight: FontWeight.bold, fontSize: 15))
                     ];
                     break;
                 }
