@@ -46,26 +46,16 @@ class ShowEvent {
       if (showTerm == currentTerm.termDisplay(showYear: false)) {
         // Now that we have the times that the show started this term, put it
         // into relative time to this week
-        int addDiff;
         if (startTime.weekday == now.weekday) {
-          addDiff = 1;
           if (startTime.compareTo(now) > 0){
             validShow = false;
             return;
           }
         }
-        else {
-          addDiff = (now.weekday - startTime.weekday).abs();
+        while (startTime.compareTo(now) < 0){
+          startTime = startTime.add(Duration(days: 7));
         }
-        // Calculate the number of days difference between now and when the
-        // show first started, and add that difference to it
-        int diffDays = startTime
-            .difference(now)
-            .inDays
-            .abs();
-        DateTime thisWeekStart = startTime.add(
-            Duration(days: diffDays + addDiff));
-        this.startTime = thisWeekStart;
+        this.startTime = startTime;
         // Generate a string representing the show end
         this.djs = eventData['djs'];
         this.description = eventData['description'];

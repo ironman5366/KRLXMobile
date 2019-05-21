@@ -3,6 +3,7 @@ package com.willbeddow.android_webview;
 import android.content.Context;
 import android.view.View;
 import android.webkit.WebView;
+import android.webkit.WebSettings;
 
 import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;

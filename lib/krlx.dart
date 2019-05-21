@@ -39,33 +39,23 @@ Future<void> spotifyAuth() async{
 
 }
 
+Map _hotCache = {};
+
 class CacheManager{
   File _cacheFile;
   CacheManager(this._cacheFile);
 
   /// Get the cache from the file. This will be called every time
   Future<Map> getCache() async{
-    // Open the cache file, read it, decode it from JSON, and return
-    // the map
-    String rawCacheData = await _cacheFile.readAsString();
-    try{
-      return convert.jsonDecode(rawCacheData);
-    }
-    catch (FormatException){
-      print("Error: malformed cache, deleting");
-      writeCache("{}");
-      return {};
-    }
+    return _hotCache;
   }
 
   void writeCache(String cacheJSON){
-    _cacheFile.writeAsStringSync(cacheJSON);
+    _cacheFile.writeAsStringSync(cacheJSON, mode: FileMode.write);
   }
 
   void writeSong(String queryId, Map cacheObj) async{
-      Map songCache = await getCache();
-      songCache[queryId] = cacheObj;
-      writeCache(convert.jsonEncode(songCache));
+      _hotCache[queryId] = cacheObj;
   }
 
   /// Check if a song exists in the cache, and if it does,

@@ -406,7 +406,7 @@ class _HomeState extends State<Home> {
                     DateFormat formatter = new DateFormat.E();
                     String dayAbbrv = formatter.format(timeRepr);
                     return SizedBox(
-                      width: 45,
+                      width: 70,
                       child: Column(
                         children: [
                           Text(dayAbbrv, style: Theme.of(context).textTheme.headline),
@@ -595,6 +595,7 @@ class _HomeState extends State<Home> {
               );
             }
           ),
+          /*
           IconButton(
               icon: Icon(Icons.settings, color: variables.theme.backgroundColor),
               onPressed: (){
@@ -603,6 +604,7 @@ class _HomeState extends State<Home> {
                         settings.SettingsScreen()));
               }
           ),
+          */
         ];
         String encodedDjString;
         if (this.currentData != null){
@@ -621,7 +623,7 @@ class _HomeState extends State<Home> {
         if (streamOnline){
           return MaterialApp(
               title: 'KRLX',
-              home: DefaultTabController(length: 4,
+              home: DefaultTabController(length: 3,
                   child: Scaffold(
                       appBar: AppBar(
                           title: Image.asset("KRLXTitleBar.png"),
@@ -629,7 +631,7 @@ class _HomeState extends State<Home> {
                           bottom: TabBar(tabs:[
                             Tab(icon: Icon(Icons.radio), text: "Now"),
                             Tab(icon: Icon(Icons.calendar_today), text: "Schedule"),
-                            Tab(icon: Icon(Icons.chat_bubble), text: "Chat"),
+                            //Tab(icon: Icon(Icons.chat_bubble), text: "Chat"),
                             Tab(icon: Icon(Icons.home), text: "KRLX")
                           ]
                           )
@@ -638,7 +640,7 @@ class _HomeState extends State<Home> {
                           children: [
                             body,
                             this.schedulePage(),
-                            this.chatPage(useChatURL),
+                            //this.chatPage(useChatURL),
                             this.krlxHomePage()
                           ]
                       ),
