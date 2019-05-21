@@ -4,12 +4,18 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.graphics.Bitmap;
+import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
+
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.SimpleExoPlayer;
 import com.willbeddow.krlx_mobile.MediaHandler;
 
 import java.net.URL;
@@ -26,7 +32,9 @@ import io.flutter.plugins.GeneratedPluginRegistrant;
 public class MainActivity extends FlutterActivity {
   private static final String CHANNEL = "krlx_mobile.willbeddow.com/media";
   private final AtomicInteger c = new AtomicInteger(0);
-  MediaHandler Session;
+  SimpleExoPlayer player;
+
+    MediaHandler Session;
 
   int currentShowNotification;
 
@@ -34,7 +42,6 @@ public class MainActivity extends FlutterActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     GeneratedPluginRegistrant.registerWith(this);
-
     // MethodChannel to handle media notifications
     new MethodChannel(getFlutterView(), CHANNEL).setMethodCallHandler(
             (call, result) -> {
@@ -46,8 +53,12 @@ public class MainActivity extends FlutterActivity {
               else if (call.method.equals("removeShowNotification")){
                   this.removeCurrentNotification();
               }
-              else if (call.method.equals("startMediaSession")){
-
+              else if (call.method.equals("play")){
+                  String contentUrl = call.argument("contentUrl");
+                  streamMusic(contentUrl);
+              }
+              else if (call.method.equals("pause")){
+                  pauseMusic();
               }
               else{
                 result.notImplemented();
@@ -55,6 +66,14 @@ public class MainActivity extends FlutterActivity {
             }
     );
 
+  }
+
+  private void streamMusic(String contentUrl){
+      System.out.println("Got contentURL");
+  }
+
+  private void pauseMusic(){
+      System.out.println("Pausing music");
   }
   private int getNotificationIcon() {
         boolean useWhiteIcon = (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP);
