@@ -3,19 +3,40 @@ package com.willbeddow.krlx_mobile;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.app.PendingIntent;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 
+import androidx.annotation.Nullable;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 
+import com.google.android.exoplayer2.DefaultLoadControl;
+import com.google.android.exoplayer2.DefaultRenderersFactory;
 import com.google.android.exoplayer2.ExoPlayerFactory;
+import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.SimpleExoPlayer;
+import com.google.android.exoplayer2.extractor.DefaultExtractorsFactory;
+import com.google.android.exoplayer2.extractor.ExtractorsFactory;
+import com.google.android.exoplayer2.source.ExtractorMediaSource;
+import com.google.android.exoplayer2.source.MediaSource;
+import com.google.android.exoplayer2.trackselection.AdaptiveTrackSelection;
+import com.google.android.exoplayer2.trackselection.DefaultTrackSelector;
+import com.google.android.exoplayer2.trackselection.TrackSelection;
+import com.google.android.exoplayer2.ui.PlayerNotificationManager;
+import com.google.android.exoplayer2.upstream.DataSource;
+import com.google.android.exoplayer2.upstream.DefaultDataSourceFactory;
+import com.google.android.exoplayer2.upstream.DefaultHttpDataSourceFactory;
+import com.google.android.exoplayer2.util.Util;
 import com.willbeddow.krlx_mobile.MediaHandler;
 
 import java.net.URL;
@@ -32,22 +53,65 @@ import io.flutter.plugins.GeneratedPluginRegistrant;
 public class MainActivity extends FlutterActivity {
   private static final String CHANNEL = "krlx_mobile.willbeddow.com/media";
   private final AtomicInteger c = new AtomicInteger(0);
-  SimpleExoPlayer player;
-
-    MediaHandler Session;
+  SimpleExoPlayer _player;
+  MediaHandler Session;
+  String showName = "Unknown Show";
+  String hosts = "Unknown Hosts";
+  PlayerNotificationManager playerNotificationManager;
 
   int currentShowNotification;
 
+    private class DescriptionAdapter implements
+            PlayerNotificationManager.MediaDescriptionAdapter {
+
+        @Override
+        public String getCurrentContentTitle(Player player) {
+            return "KRLX";
+        }
+
+        @Nullable
+        @Override
+        public String getCurrentContentText(Player player) {
+            int window = player.getCurrentWindowIndex();
+            return showName+"\n"+hosts;
+        }
+
+        @Nullable
+        @Override
+        public Bitmap getCurrentLargeIcon(Player player,
+                                          PlayerNotificationManager.BitmapCallback callback) {
+            return BitmapFactory.decodeResource(getApplicationContext().getResources(),
+                    R.mipmap.ic_launcher);
+        }
+
+        @Nullable
+        @Override
+        public PendingIntent createCurrentContentIntent(Player player) {
+            Intent intent = getPackageManager().getLaunchIntentForPackage(
+                    "com.willbeddow.krlx_mobile");
+            return PendingIntent.getActivity(getApplicationContext(),
+                    0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        }
+    }
+    // TODO: override DescriptionAdapter methods to pull from KRLX data
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     GeneratedPluginRegistrant.registerWith(this);
+    playerNotificationManager = new PlayerNotificationManager(
+              this,
+               getString(R.string.channel_id),
+               this.c.incrementAndGet(),
+               new DescriptionAdapter()
+             );
     // MethodChannel to handle media notifications
+
     new MethodChannel(getFlutterView(), CHANNEL).setMethodCallHandler(
             (call, result) -> {
               if (call.method.equals("showNotify")){
-                  String showName = call.argument("showName");
-                  String hosts = call.argument("hosts");
+                  showName = call.argument("showName");
+                  hosts = call.argument("hosts");
                   showNotify(showName, hosts);
               }
               else if (call.method.equals("removeShowNotification")){
@@ -55,6 +119,8 @@ public class MainActivity extends FlutterActivity {
               }
               else if (call.method.equals("play")){
                   String contentUrl = call.argument("contentUrl");
+                  showName = call.argument("showName");
+                  hosts = call.argument("hosts");
                   streamMusic(contentUrl);
               }
               else if (call.method.equals("pause")){
@@ -65,15 +131,46 @@ public class MainActivity extends FlutterActivity {
               }
             }
     );
-
   }
+    private MediaSource buildMediaSource(Uri uri) {
+        return new ExtractorMediaSource.Factory(
+                new DefaultHttpDataSourceFactory("KRLX-mobile")).
+                createMediaSource(uri);
+    }
 
-  private void streamMusic(String contentUrl){
-      System.out.println("Got contentURL");
+    private SimpleExoPlayer getPlayer() {
+        if (_player == null){
+            _player = ExoPlayerFactory.newSimpleInstance(this);
+            playerNotificationManager.setPlayer(_player);
+            // omit skip previous and next actions
+            playerNotificationManager.setUseNavigationActions(false);
+            // omit fast forward action by setting the increment to zero
+            playerNotificationManager.setFastForwardIncrementMs(0);
+            // omit rewind action by setting the increment to zero
+            playerNotificationManager.setRewindIncrementMs(0);
+            // omit the stop action
+            playerNotificationManager.setUseStopAction(false);
+            playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
+            playerNotificationManager.setSmallIcon(getNotificationIcon());
+        }
+        return _player;
+    }
+
+    private void streamMusic(String contentUrl){
+      System.out.println("Got contentURL, playing music from stream");
+      SimpleExoPlayer player = getPlayer();
+      Uri uri = Uri.parse(contentUrl);
+      MediaSource mediaSource = buildMediaSource(uri);
+      player.prepare(mediaSource, true, false);
+      player.seekTo(player.getDuration());
+      player.setPlayWhenReady(true);
+      System.out.println("Started music");
   }
 
   private void pauseMusic(){
       System.out.println("Pausing music");
+      SimpleExoPlayer player = getPlayer();
+      player.setPlayWhenReady(false);
   }
   private int getNotificationIcon() {
         boolean useWhiteIcon = (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP);

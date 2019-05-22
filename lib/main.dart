@@ -62,6 +62,7 @@ class _HomeState extends State<Home> {
   schedule.ShowCalendar showSchedule;
   carleton_utils.Term currentTerm = carleton_utils.Term();
   String streamUrl = 'http://garnet.krlx.org:8000/krlx';
+  bool isPlaying = false;
   static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
   // The URL for the webview to Chat with DJs. This is best done as a WebView
@@ -336,9 +337,21 @@ class _HomeState extends State<Home> {
     _controller.seekTo(_controller.value.duration);
     _controller.play();
     */
+    isPlaying = true;
+    krlx.KRLXUpdate data = this.currentData;
+    String currentShowName = "Unknown Show";
+    String hostString = "Unkown Hosts";
+    data.shows.forEach((String showId, krlx.Show show){
+      if (show.isCurrent){
+        currentShowName = show.showData["title"];
+        hostString = show.showData["djs"].join(",");
+      }
+    });
     // Call the platform channel to play the media
     await methodPlatform.invokeMethod('play', {
-      "contentUrl": streamUrl
+      "contentUrl": streamUrl,
+      "showName": currentShowName,
+      "hosts": hostString
     });
 
   }
@@ -368,21 +381,25 @@ class _HomeState extends State<Home> {
 
   void pauseAudio() async{
     // Pause the audio and remove the notification
+    /*
     _controller.pause();
     await methodPlatform.invokeMethod("removeShowNotification");
+    */
+    isPlaying = false;
+    await methodPlatform.invokeMethod("pause");
   }
 
   Widget mediaButton(){
     return FloatingActionButton(
       onPressed: () {
         setState(() {
-          _controller.value.isPlaying
+          isPlaying
               ? this.pauseAudio()
               : this.playAudio();
         });
       },
       child: Icon(
-        _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+        isPlaying ? Icons.pause : Icons.play_arrow,
       ),
     );
   }
@@ -575,7 +592,9 @@ class _HomeState extends State<Home> {
                             fontSize: 20
                           )),
                           Text("The KRLX stream cannot be loaded. This usually "
-                              "means that the stream is offline, as it is "
+                              "means that either you don't "
+                              "have an internet connection, or "
+                              "the stream is offline, as it is "
                               "on breaks. If you think it should be online "
                               "right now, try live.krlx.org"),
                         OutlineButton.icon(icon: new Icon(Icons.link,
