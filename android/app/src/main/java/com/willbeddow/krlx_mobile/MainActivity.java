@@ -94,19 +94,22 @@ public class MainActivity extends FlutterActivity {
 
         }
     }
+
+
     // TODO: override DescriptionAdapter methods to pull from KRLX data
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     GeneratedPluginRegistrant.registerWith(this);
+    this.currentShowNotification = this.c.incrementAndGet();
     playerNotificationManager = new PlayerNotificationManager(
-              this,
+                getApplicationContext(),
                getString(R.string.channel_id),
-               this.c.incrementAndGet(),
+               this.currentShowNotification,
                new DescriptionAdapter()
              );
+    this.createNotificationChannel();
     // MethodChannel to handle media notifications
-
     new MethodChannel(getFlutterView(), CHANNEL).setMethodCallHandler(
             (call, result) -> {
               if (call.method.equals("showNotify")){
@@ -152,6 +155,7 @@ public class MainActivity extends FlutterActivity {
             playerNotificationManager.setUseStopAction(false);
             playerNotificationManager.setVisibility(NotificationCompat.VISIBILITY_PUBLIC);
             playerNotificationManager.setSmallIcon(getNotificationIcon());
+            playerNotificationManager.setPriority(NotificationCompat.PRIORITY_DEFAULT);
         }
         return _player;
     }
@@ -164,6 +168,9 @@ public class MainActivity extends FlutterActivity {
       player.prepare(mediaSource, true, false);
       player.seekTo(player.getDuration());
       player.setPlayWhenReady(true);
+      NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
+      // notificationId is a unique int for each notification that you must define
+
       System.out.println("Started music");
   }
 
