@@ -330,6 +330,10 @@ class _HomeState extends State<Home> {
       );
   }
 
+  void setPlayState(bool state){
+    isPlaying = state;
+  }
+
   ///
   /// Go to the end of the stream when the user clicks play
   Future<void> playSeek() async{
