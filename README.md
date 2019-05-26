@@ -2,7 +2,9 @@
 
 A mobile app for KRLX, companion app for KRLX Desktop
 
-[Google Play](https://play.google.com/store/apps/details?id=com.willbeddow.krlx_mobile)
+
+- [Google Play](https://play.google.com/store/apps/details?id=com.willbeddow.krlx_mobile)
+- [App Store](https://itunes.apple.com/us/app/krlx/id1462817919)
 
 [More information on my website](https://willbeddow.com/krlxmobile)
 
