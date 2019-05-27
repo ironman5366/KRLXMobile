@@ -4,13 +4,18 @@ import 'package:wifi/wifi.dart';
 Future<String> ipAddr = Wifi.ip;
 
 Future<bool> get atCarleton async {
-  String ip = await ipAddr;
-  RegExp carlTest = new RegExp("137.22.\d*.\d*");
-  bool isCarl = carlTest.hasMatch(ip);
-  if (isCarl == null){
-    isCarl = false;
+  try{
+    String ip = await ipAddr;
+    RegExp carlTest = new RegExp("137.22.\d*.\d*");
+    bool isCarl = carlTest.hasMatch(ip);
+    if (isCarl == null){
+      isCarl = false;
+    }
+    return isCarl;
   }
-  return isCarl;
+  catch (e){
+    return false;
+  }
 }
 
 /// A class representing the current Carleton term (Fall, Winter, Spring)

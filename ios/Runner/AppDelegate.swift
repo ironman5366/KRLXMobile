@@ -71,7 +71,7 @@ import MediaPlayer
             }
         }
         */
-        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = player?.rate
+        nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = self.player!.rate
         
         // Set the metadata
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
@@ -100,6 +100,20 @@ import MediaPlayer
                     player?.play()
                     setupRemoteTransportControls()
                     setupNowPlaying(title: showName)
+                /*
+                do {
+                    try AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
+                    print("AVAudioSession Category Playback OK")
+                    do {
+                        try AVAudioSession.sharedInstance().setActive(true)
+                        print("AVAudioSession is Active")
+                    } catch let error as NSError {
+                        print(error.localizedDescription)
+                    }
+                } catch let error as NSError {
+                    print(error.localizedDescription)
+                }
+                    */
                 
             } else {
                 result("iOS could not extract flutter arguments in method: (sendParams)")
