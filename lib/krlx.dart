@@ -413,9 +413,20 @@ Stream<KRLXUpdate> fetchStream() async* {
   }
   cache = CacheManager(cacheFile);
   print("Got cache");
+  RegExp quoteReg = new RegExp(r'[:,]"([^:,]*"[^:,]*)"[:,]');
   while (true) {
     var response = await http.get(stream_url);
-    var streamObj = convert.jsonDecode(response.body);
+    // Process the body of the response through a regex that catches
+    // some quote errors in case the DJs entered a song with quotes
+    String responseBody = response.body;
+    if (quoteReg.hasMatch(responseBody)){
+      var quoteMatches = quoteReg.allMatches(responseBody);
+      for (var match in quoteMatches){
+        String matchString = match.group(1);
+        responseBody = responseBody.replaceAll(matchString, "Invalid title");
+      }
+    }
+    var streamObj = convert.jsonDecode(responseBody);
     print("Decoded stream data");
     var stream = KRLXUpdate(streamObj);
     print("Instantiated stream");
