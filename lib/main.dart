@@ -55,7 +55,6 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
-  VideoPlayerController _controller;
   Stream<krlx.KRLXUpdate> dataStream;
   bool chatWidgetLoaded = false;
   krlx.KRLXUpdate currentData;
@@ -73,12 +72,6 @@ class _HomeState extends State<Home> {
   @override
   void initState() {
     super.initState();
-    _controller =
-        VideoPlayerController.network(streamUrl)
-          ..initialize().then((_) {
-            // Ensure the first frame is shown after the video is initialized, even before the play button has been pressed.
-            setState(() {});
-          });
   }
 
   _HomeState() {

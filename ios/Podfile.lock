@@ -17,7 +17,7 @@ PODS:
 
 DEPENDENCIES:
   - android_webview (from `.symlinks/plugins/android_webview/ios`)
-  - Flutter (from `.symlinks/flutter/ios-release`)
+  - Flutter (from `.symlinks/flutter/ios`)
   - flutter_inappbrowser (from `.symlinks/plugins/flutter_inappbrowser/ios`)
   - path_provider (from `.symlinks/plugins/path_provider/ios`)
   - url_launcher (from `.symlinks/plugins/url_launcher/ios`)
@@ -29,7 +29,7 @@ EXTERNAL SOURCES:
   android_webview:
     :path: ".symlinks/plugins/android_webview/ios"
   Flutter:
-    :path: ".symlinks/flutter/ios-release"
+    :path: ".symlinks/flutter/ios"
   flutter_inappbrowser:
     :path: ".symlinks/plugins/flutter_inappbrowser/ios"
   path_provider:
