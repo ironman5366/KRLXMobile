@@ -413,7 +413,7 @@ Stream<KRLXUpdate> fetchStream() async* {
   }
   cache = CacheManager(cacheFile);
   print("Got cache");
-  RegExp quoteReg = new RegExp(r'[:,]"([^:,]*"[^:,]*)"[:,]');
+  RegExp quoteReg = new RegExp(r'"(?:title|album|artist)":"(((?!,"(album|artist|timestamp)").)+"((?!,"(album|artist|timestamp)").)*)","(?:album|artist|timestamp)"');
   while (true) {
     var response = await http.get(stream_url);
     // Process the body of the response through a regex that catches
