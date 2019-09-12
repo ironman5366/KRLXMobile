@@ -9,160 +9,12 @@ import 'dart:convert' as convert;
 import 'dart:async';
 import 'dart:io';
 
-// The KRLX api URL
-const String stream_url = 'http://live.krlx.org/data.php';
+// The KRLX API URL
+const String stream_url = 'https://willbeddow.com/api/krlx/v1/live';
 
 // How often data should be fetched from the KRLX API
 var updateInterval = new Duration(seconds: 15);
 
-CacheManager cache;
-String _accessToken;
-
-///
-/// Do Spotify HTTP basic auth with the credentials from spotify_api.json
-Future<void> spotifyAuth() async{
-  String spotifyAuthUrl = 'https://accounts.spotify.com/api/token';
-  String rawCreds = await rootBundle.loadString('spotify_api.json');
-  Map creds = convert.jsonDecode(rawCreds);
-  String clientId = creds['client_id'];
-  String clientSecret = creds['client_secret'];
-  // Now that the client_id and client_secret have been read in from the
-  // JSON, encode them in Base64 for the basic auth spec
-  var authString = convert.utf8.encode("$clientId:$clientSecret");
-  String encodedAuthString = 'Basic ${convert.base64Encode(authString)}';
-  // Put the encodedAuthString in the request headers to spotify
-  http.Response authResponse = await
-  http.post(spotifyAuthUrl, headers: {'Authorization': encodedAuthString},
-                            body:{'grant_type': 'client_credentials'});
-  String body = authResponse.body;
-  Map responseData = convert.jsonDecode(authResponse.body);
-  _accessToken = responseData['access_token'];
-
-}
-
-Map _hotCache = {};
-
-class CacheManager{
-  File _cacheFile;
-  CacheManager(this._cacheFile);
-
-  /// Get the cache from the file. This will be called every time
-  Future<Map> getCache() async{
-    return _hotCache;
-  }
-
-  void writeCache(String cacheJSON){
-    _cacheFile.writeAsStringSync(cacheJSON, mode: FileMode.write);
-  }
-
-  void writeSong(String queryId, Map cacheObj) async{
-      _hotCache[queryId] = cacheObj;
-  }
-
-  /// Check if a song exists in the cache, and if it does,
-  /// return it
-  Future<Map> getSong(String queryId) async{
-    Map songCache = await getCache();
-    if (songCache.containsKey(queryId)){
-      return songCache[queryId];
-    }
-    else{
-      return null;
-    }
-  }
-
-}
-
-http.Response defaultImage;
-String defaultURL = "https://apps.carleton.edu/stock/ldapimage.php?id=doesntexist";
-
-Map _imCache = {};
-
-class SongQuery{
-  String artist;
-  String track;
-  String album;
-  String _spotifyAPIUrl = 'https://api.spotify.com/v1/search';
-
-  SongQuery(this.artist, this.track, this.album);
-
-  /// Build a query string in Spotify search suntax that will be unique
-  /// for this song, artist, and album. This will also be used as an
-  /// identifier for the query record in the cache
-  String queryString(){
-    String query = '${track} artist:${artist}';
-    if (this.album != null && this.album != ''){
-      query += ' album:${album}';
-    }
-    return query;
-  }
-
-  ///
-  /// Return both an album cover link from Spotify, and a link
-  /// to open the song in spotify
-  Future<List<String>> _spotifyQuery([int retry]) async{
-    // Build a request to the Spotify API, using _accessToken for
-    // authentication, and this.queryString() for a search, as the
-    // the query string complies with Spotify search syntax
-    var queryPath = new Uri.https('api.spotify.com', 'v1/search',
-        {
-          "q": this.queryString(),
-          "limit": "1",
-          "market": "US",
-          "type": "track"
-        });
-    print("Querying ${queryPath.toString()}");
-    http.Response queryResponse = await http.get(queryPath.toString(),
-                                    headers: {"Authorization":
-                                                "Bearer $_accessToken"});
-    // If the response has a 403 status code (bad auth), and the retry has
-    // happened less than twice, do the Spotify auth again and recurse.
-    // This should handle Spotify token expiration
-    if (queryResponse.statusCode == 403){
-      if (retry != null && retry < 3){
-        if (retry == null){
-          retry = 1;
-        }
-        else{
-          retry++;
-        }
-        print("Trying spotify auth again...");
-        await spotifyAuth();
-        return _spotifyQuery(retry);
-      }
-      else{
-        print("Got bad auth status code, out of retries");
-        return [null, null];
-      }
-    }
-    else{
-      // Decode the JSON body and pull data from it
-      Map responseData = convert.jsonDecode(queryResponse.body);
-      // Check that there was a track returned
-      List tracks = responseData['tracks']['items'];
-      if (tracks.length >= 1){
-        String spotifyURL = tracks[0]['external_urls']['spotify'];
-        String albumCover = tracks[0]['album']['images'][0]['url'];
-        return [albumCover, spotifyURL];
-      }
-      else{
-        print("No spotify track found for query ${queryString()}");
-        return [null, null];
-      }
-    }
-  }
-
-  /// Start the query
-  Future<Map> query() async{
-    Map<String, String> results = new Map<String, String>();
-    results['youtube'] = 'https://www.youtube.com/results?search_query=$track+by+$artist';
-    List<String> spotifyResults = await _spotifyQuery();
-    results['album_cover'] = spotifyResults[0];
-    results['spotify'] = spotifyResults[1];
-    results['apple'] = null;
-    return results;
-  }
-}
 
 class Song{
   var _songData;
@@ -181,33 +33,20 @@ class Song{
 
   Future<Song> processSong() async{
     // Instantiate a SongQuery
-    SongQuery queryObj = SongQuery(this.artist, this.songTitle, this.album);
-    this.queryID = queryObj.queryString();
-    // Get the query string and check if it already exists in the cache
-    String queryId = queryObj.queryString();
-    Map cachedSong = await cache.getSong(queryId);
-    Map results;
-    if (cachedSong != null){
-      print("Got song $queryId from cache");
-      results = cachedSong;
-    }
-    else{
-      results = await queryObj.query();
-      cache.writeSong(queryId, results);
-    }
-    this.albumCover = results['album_cover'];
-    this.spotifyLink = results['spotify'];
-    this.appleMusicLink = results['apple'];
-    this.youtubeLink = results['youtube'];
+    this.albumCover = this._songData['external']['spotify']['album_cover'];
+    this.spotifyLink = this._songData['external']['spotify']['link'];
+    this.youtubeLink = this._songData['external']['youtube']['link'];
     return this;
   }
 
   Song(var songData){
     this._songData = songData;
+
     this.playedBy = _songData['show_title'];
     this.artist = _songData['artist'];
     this.songTitle = _songData['title'];
     this.album = _songData['album'];
+    this.queryID = "${this.songTitle}${this.artist}${this.album}${this.playedBy}";
     _processingDone = processSong();
   }
 
@@ -216,9 +55,7 @@ class Song{
 }
 
 class Show{
-  RegExp dirReg = new RegExp(r'(<div class="email"><span class="icon">\n{0,1}</span>(\w+)&nbsp;)|<span class="icon"></span><a href="mailto:(\w+)@carleton.edu">');
   RegExp hostReg = new RegExp(r"^(\S+) ([^\s\d]+ )+('(\d\d)?|)|(\S+) (\S+)$");
-  String directoryUrl = 'apps.carleton.edu';
   String ldapPrefix = 'https://apps.carleton.edu/stock/ldapimage.php?id=';
   String startDisplay;
   String endDisplay;
@@ -231,105 +68,19 @@ class Show{
   var showData;
 
 
-  String getDJImage(String pageData){
-    // If the student is on campus, do real query to find student username.
-    // otherwise, try getting the student image from their first name and
-    // last name
-    var pageOps = dirReg.firstMatch(pageData);
-    String username = pageOps.group(1);
-    // If the first regex matched an HTML tag instead of a username,
-    // failover to the second one. This usually happens when a user is not
-    // logged into the Carleton directory
-    if (username == null || username.contains("<")){
-      username = pageOps.group(2) ?? pageOps.group(3);
-    }
-    String imageUrl = ldapPrefix+username;
-    return imageUrl;
-  }
-
-  Future<String> guessDJImage(String firstName, String lastName) async{
-    String nameId = "$firstName$lastName";
-    if (_imCache.containsKey(nameId)){
-      return _imCache[nameId];
-    }
-    // Use image size to figure out which url will work
-    if (defaultImage == null){
-      defaultImage = await http.get(defaultURL);
-    }
-    var defaultSize = defaultImage.contentLength;
-    // Generate a slug
-    RegExp djReg = new RegExp(r'(\w+)');
-    String idLastName = djReg.firstMatch(lastName).group(0).toLowerCase();
-    String userID = "${idLastName}${firstName[0].toLowerCase()}";
-    int queryNum;
-    bool userFound = false;
-    String finalID = defaultURL;
-    while (!userFound){
-      if (queryNum != null && queryNum >= 10){
-        break;
-      }
-      String queryURL;
-      String attemptID;
-      if (queryNum == null){
-        attemptID = userID;
-      }
-      else{
-        attemptID = "$userID$queryNum";
-      }
-      queryURL = "https://apps.carleton.edu/stock/ldapimage.php?id=${attemptID}";
-      print(queryURL);
-      if ((await http.get(queryURL)).contentLength !=
-          defaultSize){
-        userFound = true;
-
-        finalID = queryURL;
-        break;
-      }
-      else{
-        if (queryNum == null){
-          queryNum =1;
-        }
-        else{
-          queryNum++;
-        }
-      }
-    }
-    _imCache[nameId] = finalID;
-    return finalID;
-  }
-
   Future<void> processHosts() async{
     Map<String, String> showHosts = new Map<String, String>();
-    for (var dj in showData['djs']){
-      var djOps = hostReg.firstMatch(dj);
+    for (var dj in showData['djs']) {
+      var djOps = hostReg.firstMatch(dj['name']);
       String firstName = djOps.group(1) ?? djOps.group(5);
       String lastName = djOps.group(2) ?? djOps.group(6);
       // This is the group that matched the class year digits,
       // if the host is not a student, it will be empty
       String classYear = djOps.group(3);
-      if (classYear == null){
+      if (classYear == null) {
         classYear = '';
       }
-      bool student = !(classYear.isEmpty);
-      var queryParams = {
-        "first_name": firstName,
-        "last_name": lastName
-      };
-      if (student){
-        queryParams['search_for'] = 'student';
-      }
-      var fetchURL = new Uri.https(directoryUrl, '/campus/directory',
-                                    queryParams);
-      var html = await http.get(fetchURL);
-      bool atCarleton = await carleton_utils.atCarleton;
-      var im;
-      if (atCarleton){
-        im = getDJImage(html.body);
-      }
-      else{
-        im = await guessDJImage(firstName, lastName);
-      }
-      showHosts[dj] = im;
+      showHosts[dj['name']] = dj['image'];
     }
     this.hosts = showHosts;
 
@@ -402,13 +153,15 @@ class Show{
 class KRLXUpdate{
 
   var _streamData;
+  var _statusData;
   Future<Map<String, Song>> _futSongs;
   Future<Map<String, Show>> _futShows;
   Map<String, Song> songs;
   Map<String, Show> shows;
 
   KRLXUpdate(streamData){
-    this._streamData = streamData;
+    this._streamData = streamData["data"];
+    this._statusData = streamData["status"];
     _futShows = processShows();
     _futSongs = processSongs();
   }
@@ -443,12 +196,20 @@ class KRLXUpdate{
   }
 
   String get statusDisplay{
-    if (this._streamData['status'] == "on_air"){
+    if (this._statusData['online']){
       return "On Air";
     }
     else{
-      return this._streamData['status'];
+      return this._statusData['blurb'];
     }
+  }
+
+  bool streamOnline(){
+    return this._statusData["online"];
+  }
+
+  String blurb(){
+    return this._statusData["blurb"];
   }
 
   Future get processDone async{
@@ -462,48 +223,17 @@ class KRLXUpdate{
 }
 
 Stream<KRLXUpdate> fetchStream() async* {
-  print("Doing spotify auth");
-  // Authenticate with Spotify
-  await spotifyAuth();
-  print("Spotify auth done");
-  // Instantiate the cache
-  Directory cacheDir = await getApplicationDocumentsDirectory();
-  print("Using cache directory ${cacheDir.path}");
-  String cacheFileName = '${cacheDir.path}/cache.json';
-  File cacheFile = File(cacheFileName);
-  bool cacheExists = await cacheFile.exists();
-  if (!cacheExists){
-    // Create the cache
-    await cacheFile.create();
-    // An empty JSON dictionary
-    cacheFile.writeAsStringSync("{}");
-  }
-  cache = CacheManager(cacheFile);
-  print("Got cache");
-  RegExp quoteReg = new RegExp(r'"(?:title|album|artist)":"(((?!,"(album|artist|timestamp)").)+"((?!,"(album|artist|timestamp)").)*)","(?:album|artist|timestamp)"');
   while (true) {
     var response = await http.get(stream_url);
     // Process the body of the response through a regex that catches
     // some quote errors in case the DJs entered a song with quotes
-    String responseBody = response.body;
-    if (quoteReg.hasMatch(responseBody)){
-      var quoteMatches = quoteReg.allMatches(responseBody);
-      for (var match in quoteMatches){
-        String matchString = match.group(1);
-        responseBody = responseBody.replaceAll(matchString, "Invalid title");
-      }
-    }
-    var streamObj = convert.jsonDecode(responseBody);
+    var streamObj = convert.jsonDecode(response.body);
     print("Decoded stream data");
     var stream = KRLXUpdate(streamObj);
     print("Instantiated stream");
     await stream.processDone;
-    print("Stream processing done");
+    print("Stream processing done, online is ${stream.streamOnline()}");
     yield stream;
-    if (stream.statusDisplay != "On Air") {
-      print("Status ${stream.statusDisplay}");
-      break;
-    }
     await Future.delayed(updateInterval);
   }
 }

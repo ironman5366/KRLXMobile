@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:video_player/video_player.dart';
-import 'package:android_webview/native_webview.dart';
+//import 'package:android_webview/native_webview.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -10,6 +10,7 @@ import 'package:flutter_inappbrowser/flutter_inappbrowser.dart';
 import 'dart:convert' as convert;
 import 'package:side_header_list_view/side_header_list_view.dart';
 import 'package:intl/intl.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 
 import 'dart:ui' show Color;
@@ -62,6 +63,7 @@ class _HomeState extends State<Home> {
   carleton_utils.Term currentTerm = carleton_utils.Term();
   String streamUrl = 'http://garnet.krlx.org:8000/krlx';
   bool isPlaying = false;
+  bool streamOnline = true;
   static const methodPlatform = const MethodChannel(
       "krlx_mobile.willbeddow.com/media");
   // The URL for the webview to Chat with DJs. This is best done as a WebView
@@ -405,8 +407,8 @@ class _HomeState extends State<Home> {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
    */
   Widget schedulePage(){
-    return
-        FutureBuilder(
+    if (this.streamOnline){
+      return  FutureBuilder(
           future: this.showSchedule.shows,
           initialData: Center(
               child: SpinKitRotatingCircle(
@@ -425,12 +427,12 @@ class _HomeState extends State<Home> {
                     DateFormat formatter = new DateFormat.E();
                     String dayAbbrv = formatter.format(timeRepr);
                     return SizedBox(
-                      width: 70,
-                      child: Column(
-                        children: [
-                          Text(dayAbbrv, style: Theme.of(context).textTheme.headline),
-                        ]
-                      )
+                        width: 70,
+                        child: Column(
+                            children: [
+                              Text(dayAbbrv, style: Theme.of(context).textTheme.headline),
+                            ]
+                        )
                     );
                   },
                   itemBuilder: ((BuildContext context, int index){
@@ -440,13 +442,13 @@ class _HomeState extends State<Home> {
                     Card(child:
                     ListTile(
                         title: Text(
-                          eventRepr.description.replaceAll("\\", ""),
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis
+                            eventRepr.description.replaceAll("\\", ""),
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                            overflow: TextOverflow.ellipsis
                         ),
                         // subtitle: Text("Intermediate", style: TextStyle(color: Colors.white)),
                         subtitle: Text(eventRepr.djs.replaceAll("\\", ""), overflow:
-                            TextOverflow.ellipsis),
+                        TextOverflow.ellipsis),
                         trailing: Text(eventRepr.reprDuration, textAlign: TextAlign.left,)
                     )
                     )
@@ -454,7 +456,7 @@ class _HomeState extends State<Home> {
                   }),
                   hasSameHeader: (int firstIdx, int secondIdx){
                     return (snapshot.data[firstIdx].startTime.day ==
-                            snapshot.data[secondIdx].startTime.day);
+                        snapshot.data[secondIdx].startTime.day);
                   },
                 );
               default:
@@ -465,7 +467,14 @@ class _HomeState extends State<Home> {
                     ));
             }
           })
-        );
+      );
+    }
+    else{
+      return Card(
+        child: Text("KRLX is currently offline")
+      );
+    }
+
   }
 
   Map currentDjs(){
@@ -482,10 +491,11 @@ class _HomeState extends State<Home> {
   Widget chatPage(String useChatURL){
     if (Platform.isAndroid){
       return Container(
-          child: NativeWebView(
-            onWebViewCreated: (WebViewController controller){
-              controller.setUrl(useChatURL);
-            },
+          child: InAppWebView(
+          initialUrl: useChatURL ,
+          initialOptions: {
+              "userAgent": "Mozilla/5.0 (Linux; Android 7.0; SM-G930V Build/NRD90M) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/59.0.3071.125 Mobile Safari/537.36 KRLXMobile"
+          }
           )
       );
     }
@@ -549,7 +559,6 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    bool streamOnline = false;
     // Load the schedule
     this.showSchedule = new schedule.ShowCalendar();
     // Construct a Stream Builder widget
@@ -557,6 +566,9 @@ class _HomeState extends State<Home> {
       stream: this.dataStream,
       builder: (BuildContext context, AsyncSnapshot snapshot) {
         Widget body;
+        if (snapshot.data != null){
+          this.streamOnline = snapshot.data.streamOnline();
+        }
         if (snapshot.hasError) body = Text('Error: ${snapshot.error}');
         switch (snapshot.connectionState) {
           case ConnectionState.none:
@@ -565,45 +577,71 @@ class _HomeState extends State<Home> {
           case ConnectionState.waiting:
             body = Center(
                 child: SpinKitRotatingCircle(
-              color: variables.theme.accentColor,
-              size: 50.0,
-            ));
+                  color: variables.theme.accentColor,
+                  size: 50.0,
+                ));
             break;
           case ConnectionState.active:
-            this.currentData = snapshot.data;
-            body = _render(snapshot.data);
-            streamOnline = true;
+            if (this.streamOnline) {
+              this.currentData = snapshot.data;
+              body = _render(snapshot.data);
+            }
+            else {
+              body = Center(
+                  child: Column(
+                      children: [
+                        Card(child:
+                        Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text("KRLX is offline", style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 20
+                              )),
+                              Text(snapshot.data.blurb()),
+                              OutlineButton.icon(icon: new Icon(Icons.link,
+                              ), onPressed: () {
+                                _launchURL("http://live.krlx.org");
+                              }, label: Text("live.krlx.org")),
+                            ]
+                        )
+                        )
+                      ]
+                  )
+              );
+            }
             break;
           case ConnectionState.done:
-            // Reinstate the dataStream, wait, and
+          // Reinstate the dataStream, wait, and
             this.dataStream = krlx.fetchStream();
+            if (this.streamOnline) {
+              this.currentData = snapshot.data;
+              body = _render(snapshot.data);
+            }
+            else{
             body = Center(
-              child: Column(
-                children: [
-                  Card(child:
+                child: Column(
+                    children: [
+                      Card(child:
                       Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text("KRLX is offline", style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 20
-                          )),
-                          Text("The KRLX stream cannot be loaded. This usually "
-                              "means that either you don't "
-                              "have an internet connection, or "
-                              "the stream is offline, as it is "
-                              "on breaks. If you think it should be online "
-                              "right now, try live.krlx.org"),
-                        OutlineButton.icon(icon: new Icon(Icons.link,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text("KRLX is offline", style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20
+                            )),
+                            Text(snapshot.data.blurb()),
+                            OutlineButton.icon(icon: new Icon(Icons.link,
                             ), onPressed: () {
-                          _launchURL("http://live.krlx.org");
-                        }, label: Text("live.krlx.org")),
-                        ]
+                              _launchURL("http://live.krlx.org");
+                            }, label: Text("live.krlx.org")),
+                          ]
                       )
-                  )
-                ]
-              )
+                      )
+                    ]
+                )
             );
+        }
         }
         List<Widget> appBarActions = [
           IconButton(
@@ -641,7 +679,7 @@ class _HomeState extends State<Home> {
             "$chatURL?djs=$encodedDjString" :
             chatURL;
         print("Using chatURL ${useChatURL}");
-        if (streamOnline){
+        if (this.streamOnline){
           return MaterialApp(
               title: 'KRLX',
               home: DefaultTabController(length: 3,
