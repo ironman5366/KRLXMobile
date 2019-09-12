@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'carleton_utils.dart' as carleton_utils;
 
 import 'package:intl/intl.dart';
 import 'dart:convert' as convert;
@@ -71,6 +72,11 @@ class CacheManager{
   }
 
 }
+
+http.Response defaultImage;
+String defaultURL = "https://apps.carleton.edu/stock/ldapimage.php?id=doesntexist";
+
+Map _imCache = {};
 
 class SongQuery{
   String artist;
@@ -226,6 +232,9 @@ class Show{
 
 
   String getDJImage(String pageData){
+    // If the student is on campus, do real query to find student username.
+    // otherwise, try getting the student image from their first name and
+    // last name
     var pageOps = dirReg.firstMatch(pageData);
     String username = pageOps.group(1);
     // If the first regex matched an HTML tag instead of a username,
@@ -236,6 +245,57 @@ class Show{
     }
     String imageUrl = ldapPrefix+username;
     return imageUrl;
+  }
+
+  Future<String> guessDJImage(String firstName, String lastName) async{
+    String nameId = "$firstName$lastName";
+    if (_imCache.containsKey(nameId)){
+      return _imCache[nameId];
+    }
+    // Use image size to figure out which url will work
+    if (defaultImage == null){
+      defaultImage = await http.get(defaultURL);
+    }
+    var defaultSize = defaultImage.contentLength;
+    // Generate a slug
+    RegExp djReg = new RegExp(r'(\w+)');
+    String idLastName = djReg.firstMatch(lastName).group(0).toLowerCase();
+    String userID = "${idLastName}${firstName[0].toLowerCase()}";
+    int queryNum;
+    bool userFound = false;
+    String finalID = defaultURL;
+    while (!userFound){
+      if (queryNum != null && queryNum >= 10){
+        break;
+      }
+      String queryURL;
+      String attemptID;
+      if (queryNum == null){
+        attemptID = userID;
+      }
+      else{
+        attemptID = "$userID$queryNum";
+      }
+      queryURL = "https://apps.carleton.edu/stock/ldapimage.php?id=${attemptID}";
+      print(queryURL);
+      if ((await http.get(queryURL)).contentLength !=
+          defaultSize){
+        userFound = true;
+
+        finalID = queryURL;
+        break;
+      }
+      else{
+        if (queryNum == null){
+          queryNum =1;
+        }
+        else{
+          queryNum++;
+        }
+      }
+    }
+    _imCache[nameId] = finalID;
+    return finalID;
   }
 
   Future<void> processHosts() async{
@@ -261,7 +321,14 @@ class Show{
       var fetchURL = new Uri.https(directoryUrl, '/campus/directory',
                                     queryParams);
       var html = await http.get(fetchURL);
-      var im = getDJImage(html.body);
+      bool atCarleton = await carleton_utils.atCarleton;
+      var im;
+      if (atCarleton){
+        im = getDJImage(html.body);
+      }
+      else{
+        im = await guessDJImage(firstName, lastName);
+      }
       showHosts[dj] = im;
     }
     this.hosts = showHosts;
